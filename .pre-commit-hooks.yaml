@@ -1,6 +1,6 @@
 - id: fkt
   name: fkt
-  language: docker
-  entry: fkt
+  language: docker_image
+  entry: ghcr.io/clingclangclick/fkt/fkt:0.1.0
   pass_filenames: false
   verbose: true

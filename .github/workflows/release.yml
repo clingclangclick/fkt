@@ -12,9 +12,9 @@ jobs:
     permissions:
       contents: 'read'
     outputs:
-      tag_changed: ${{ steps.changed-files.outputs.doc_any_modified || steps.changed-files.outputs.build_any_modified || steps.changed-files.outputs.other_any_modified }}
-      build_changed: ${{ steps.changed-files.outputs.build_any_modified }}
-      image_changed: ${{ steps.changed-files.outputs.build_any_modified || steps.changed-files.outputs.other_any_modified }}
+      tag_changed: ${{ steps.changed-files.outputs.doc_any_modified == 'true'|| steps.changed-files.outputs.build_any_modified == 'true' || steps.changed-files.outputs.other_any_modified == 'true'}}
+      build_changed: ${{ steps.changed-files.outputs.build_any_modified == 'true' }}
+      image_changed: ${{ steps.changed-files.outputs.build_any_modified == 'true' || steps.changed-files.outputs.other_any_modified == 'true' }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4

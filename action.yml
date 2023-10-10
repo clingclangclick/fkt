@@ -16,8 +16,8 @@ inputs:
     default: 'warn'
 
 runs:
-  using: docker
-  image: Dockerfile
+  using: 'docker'
+  image: 'docker://ghcr.io/clingclangclick/fkt/fkt:0.1.0'
   args:
     - --base-directory
     - ${{ inputs.base-directory }}
