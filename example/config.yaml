@@ -1,0 +1,77 @@
+---
+settings:
+  directories:
+    sources: sources
+    overlays: overlays
+  delimiters:
+    left: '[[['
+    right: ']]]'
+  log:
+    level: debug
+    format: json
+anchors:
+  flux-system: &flux-system
+    flux-system:
+      managed: false
+  configmaps: &configmaps
+    configmaps:
+      values:
+        source_key: configmaps-source_value
+    configmaps-x:
+      namespace: configmaps-x
+      origin: configmaps
+      values:
+        source_key: configmaps-x_source_value
+values:
+  global_key: global_value
+  global_array_keys:
+    - global_array_key: global_array_value
+    - global_array_property:
+        global_array_property_key: global_array_property_value
+  global_slices:
+    - global_slice_one
+    - global_slice_two
+clusters:
+  - platform: platform
+    name: name
+    region: region
+    environment: environment
+    managed: true
+    unmanaged:
+      - flux-system
+    values:
+      cluster_inline_folded: >
+        Several lines of text,
+        with some "quotes" of various 'types',
+        and also a blank line:
+
+        and some text with
+          extra indentation
+          on the next line,
+        plus another line at the end.
+
+
+      cluster_inline_literal: |
+        Several lines of text,
+        with some "quotes" of various 'types',
+        and also a blank line:
+
+        and some text with
+          extra indentation
+        on the next line,
+        plus another line at the end.
+
+
+      cluster_inline_single_quoted: 'Several lines of text,
+        ·containing ''''single quotes''''. Escapes (like \n) don''''t do anything.
+
+        Newlines can be added by leaving a blank line.
+          Leading whitespace on lines is ignored.'
+      cluster_key: cluster_value
+      cluster_array_keys:
+        - cluster_array_slice: cluster_array_value
+      cluster_slices:
+        - cluster_slice_one
+        - cluster_slice_two
+    sources:
+      <<: [*flux-system, *configmaps]

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: [[[ .Source.name ]]]
+  namespace: [[[ .Source.namespace ]]]
+  origin: [[[ .Source.origin ]]]
+data:
+  name: [[[ .Cluster.name ]]]
+  environment: [[[ .Cluster.environment ]]]
+  platform: [[[ .Cluster.platform ]]]
+  region: [[[ .Cluster.region ]]]
+  global_value: [[[ .Values.global_key ]]]
+  cluster_value: [[[ .Values.cluster_key ]]]
+  source_value: [[[ .Values.source_key ]]]
+  keys: "[[[ keys .Values | join "," ]]]"
+  cluster_inline_folded: >[[[ nindent 4 .Values.cluster_inline_folded ]]]
+  cluster_inline_literal: |[[[ nindent 4 .Values.cluster_inline_literal ]]]
+  cluster_inline_single_quoted: '[[[ indent 4 .Values.cluster_inline_single_quoted | trim ]]]'
+  cluster_array_keys: [[[ first .Values.cluster_array_keys | values | first ]]]

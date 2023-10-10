@@ -1,0 +1,7 @@
+**/.git
+.github
+Makefile
+.tool-versions
+.gitignore
+.pre-commit-config.yaml
+.pre-commit-hooks.yaml

@@ -1,0 +1,6 @@
+- id: fkt
+  name: fkt
+  language: docker
+  entry: fkt
+  pass_filenames: false
+  verbose: true

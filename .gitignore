@@ -1,0 +1,4 @@
+bin
+!example/overlays/.gitignore
+example/overlays/
+.venv

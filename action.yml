@@ -1,0 +1,28 @@
+name: FluxCD Kind of Templator
+author: CCC
+description: A Kustomize(ish) templator
+inputs:
+  base-directory:
+    description: 'Base directory of operations'
+    required: false
+    default: .
+  config-file:
+    description: 'Configuration file'
+    required: false
+    default: 'config.yaml'
+  log-level:
+    description: 'Logging level'
+    required: false
+    default: 'warn'
+
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - --base-directory
+    - ${{ inputs.base-directory }}
+    - --config-file
+    - ${{ inputs.config-file }}
+    - --log-level
+    - ${{ inputs.log-level }}
+    - -d

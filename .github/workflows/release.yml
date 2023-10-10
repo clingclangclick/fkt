@@ -1,0 +1,236 @@
+name: "Release"
+
+on:
+  pull_request:
+    types:
+    - closed
+
+jobs:
+  Changes:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    outputs:
+      tag_changed: ${{ steps.changed-files.outputs.doc_any_modified || steps.changed-files.outputs.build_any_modified || steps.changed-files.outputs.other_any_modified }}
+      build_changed: ${{ steps.changed-files.outputs.build_any_modified }}
+      image_changed: ${{ steps.changed-files.outputs.build_any_modified || steps.changed-files.outputs.other_any_modified }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: true
+    - name: Changed Files
+      id: changed-files
+      uses: tj-actions/changed-files@v39
+      with:
+        files_yaml: |
+          doc:
+            - '**/*.md'
+            - README.md
+            - LICENSE
+          build:
+            - go.mod
+            - go.sum
+            - '**/*.go'
+            - 'vendor/**'
+          other:
+            - Dockerfile
+            - action.yml
+            - .pre-commit-hooks.yaml
+  Tag:
+    if: needs.Changes.outputs.tag_changed == 'true'
+    runs-on: ubuntu-latest
+    needs:
+      - Changes
+    permissions:
+      contents: 'write'
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        fetch-depth: 0
+        ref: main
+    - name: Tag
+      id: tag
+      env:
+        BODY: ${{ github.event.pull_request.body }}
+        TITLE: ${{ github.event.pull_request.title }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        git config user.name "${{ github.actor }}"
+        git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+        # Increment Tag Version
+        # $1 - version (semver)
+        # $2 - position
+        increment_version() {
+          local suffix="${1#"${1%%[+-]*}"}"
+          local version="${1%"$suffix"}"
+          local delimiter=.
+          # shellcheck disable=SC2207
+          local array=($(tr "$delimiter" '\n' <<< "$version"))
+          array[$2]=$((array[$2]+1))
+          if [ "$2" -lt 2 ]; then array[2]=0; fi
+          if [ "$2" -lt 1 ]; then array[1]=0; fi
+          echo "$(local IFS="$delimiter"; echo "${array[*]}")$suffix"
+        }
+        if [ "${{ contains(github.event.pull_request.labels.*.name, 'version-patch' )}}" == "true" ]; then
+          POSITION=2
+        elif [ "${{ contains(github.event.pull_request.labels.*.name, 'version-major' )}}" == "true" ]; then
+          POSITION=0
+        elif [ "${{ contains(github.event.pull_request.labels.*.name, 'version-minor' )}}" == "true" ]; then
+          POSITION=1
+        else
+          POSITION=1
+        fi
+
+        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
+
+        # Version sort is _not_ semver
+        CURRENT_TAG="$(git tag -l "v*" 2>/dev/null | sort -Vr | head -n1)"
+        CURRENT_VERSION="${CURRENT_TAG##v}"
+        THIS_VERSION="$(increment_version "${CURRENT_VERSION:-0.0.0}" "$POSITION")"
+        TAG_VERSION="v$THIS_VERSION"
+
+        (
+          echo previous_tag="${CURRENT_TAG:-v0.0.0}"
+          echo previous_version="${CURRENT_VERSION:-0.0.0}"
+          echo tag="$TAG_VERSION"
+          echo version="$THIS_VERSION"
+        ) >> "$GITHUB_OUTPUT"
+
+        git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" ${{ github.sha }}
+        git push --follow-tags --force origin "$TAG_VERSION"
+        # git tag -a -m "$TITLE" latest ${{ github.sha }}
+        # git push --follow-tags --force origin latest
+    - name: Release
+      id: release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PREVIOUS_TAG: ${{ steps.tag.outputs.previous_tag }}
+        TAG: ${{ steps.tag.outputs.tag }}
+        VERSION: ${{ steps.tag.outputs.version }}
+      shell: bash
+      run: |
+        set -eu
+        gh_opts=(--generate-notes --target ${{ github.sha }} --verify-tag)
+        if [ "$PREVIOUS_TAG" != "v0.0.0" ]; then
+          gh_opts+=(--notes-start-tag "$PREVIOUS_TAG")
+        fi
+        # shellcheck disable=SC2068
+        gh release create "$TAG" ${gh_opts[@]}
+
+  Build:
+    name: Build Binaries
+    if: needs.Changes.outputs.build_changed == 'true'
+    needs:
+      - Changes
+      - Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - uses: arnested/go-version-action@v1
+      id: go-version
+    - name: Install Go ${{ steps.go-version.outputs.minimal }}
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ steps.go-version.outputs.minimal }}
+        check-latest: true
+    - name: Build
+      id: build
+      env:
+        BIN: ${{github.repository}}-${{ matrix.goos }}-${{ matrix.goarch }}
+        CGO_ENABLED: 0
+        GOARCH: ${{ matrix.goarch }}
+        GOOS: ${{ matrix.goos }}
+      shell: bash
+      run: |
+        go build -o "$BIN"
+        echo "bin=$BIN" >> "$GITHUB_OUTPUT"
+    - name: Release
+      env:
+        BIN: ${{ steps.build.outputs.bin }}
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ needs.Tag.outputs.tag }}
+      shell: bash
+      run: |
+        set -e
+        gh release upload "$TAG" "$BIN" --clobber
+
+  Image:
+    name: Build and Push Docker Image
+    if: needs.Changes.outputs.image_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      packages: 'write'
+    needs:
+      - Changes
+      - Tag
+    env:
+      DOCKER_REPOSITORIES: |
+        ghcr.io/${{ github.repository }}/fkt
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Login to Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    - name: Image Metadata
+      id: metadata
+      uses: docker/metadata-action@v5
+      env:
+        IMAGE_TITLE: "FluxCD Kind of Templater"
+        VERSION: ${{ needs.Tag.outputs.version }}
+      with:
+        images: |
+          ${{ env.DOCKER_REPOSITORIES }}
+        tags: |
+          type=raw,enable=true,priority=200,prefix=,suffix=,value=${{ env.VERSION }}
+          type=ref,event=pr,prefix=snapshot-pr-,enable=${{ contains(github.event.pull_request.labels.*.name, 'snapshot') }}
+          type=pep440,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags') }}
+        labels:
+          org.opencontainers.image.title=${{ env.IMAGE_TITLE }}
+          org.opencontainers.image.authors=${{ github.triggering_actor }}
+    - name: Setup Docker BuildX
+      uses: docker/setup-buildx-action@v3
+    - name: Build and Push
+      id: docker-build-and-push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        push: true
+        tags: ${{ steps.metadata.outputs.tags }}
+        labels: ${{ steps.metadata.outputs.labels }}
+        platforms: linux/amd64,linux/arm64
+    - name: Summary
+      env:
+        IMAGE_ID: ${{ steps.docker-build-and-push.outputs.imageid }}
+      shell: bash
+      run: |
+        set -e
+        (
+          echo '### Image Created'
+          echo "Image Id: [${{ env.IMAGE_ID }}](${{ env.IMAGE_ID }})"
+          echo "Image Tags: $(docker image inspect --format "{{.RepoTags}}" ${{ env.IMAGE_ID }})"
+        ) >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,17 @@
+repos:
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.6.26
+  hooks:
+  - id: actionlint
+- repo: https://github.com/syntaqx/git-hooks
+  rev: v0.0.18
+  hooks:
+  - id: shellcheck
+    exclude: ^vendor/
+- repo: git@github.com:clingclangclick/pre-commit-docker-kustomize
+  rev: v0.1.0
+  hooks:
+  - id: kustomize
+    name: kustomize
+    args: [example/overlays]
+    verbose: true
