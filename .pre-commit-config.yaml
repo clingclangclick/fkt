@@ -8,10 +8,3 @@ repos:
   hooks:
   - id: shellcheck
     exclude: ^vendor/
-- repo: git@github.com:clingclangclick/pre-commit-docker-kustomize
-  rev: v0.1.0
-  hooks:
-  - id: kustomize
-    name: kustomize
-    args: [example/overlays]
-    verbose: true
