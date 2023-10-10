@@ -2,6 +2,8 @@
 
 FLuxCD Kind of Templater
 
+[![Release](https://github.com/clingclangclick/fkt/actions/workflows/release.yml/badge.svg)](https://github.com/clingclangclick/fkt/actions/workflows/release.yml)
+
 ## Usage
 
 ```shell
