@@ -1,20 +1,20 @@
 package fkt
 
 import (
-	"os"
 	"fmt"
+	"os"
 
-	"golang.org/x/sync/errgroup"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	utils "github.com/clingclangclick/fkt/utils"
 )
 
 type Config struct {
-	Settings      *Settings `yaml:"settings"`
-	Values        Values    `yaml:"values,flow"`
-	Clusters      []Cluster `yaml:"clusters"`
+	Settings *Settings `yaml:"settings"`
+	Values   Values    `yaml:"values,flow"`
+	Clusters []Cluster `yaml:"clusters"`
 }
 
 func (config *Config) defaults() {
@@ -52,7 +52,7 @@ func (config *Config) Process() error {
 		}(config)
 	}
 	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("confighema processing failed: %w", err)
+		return fmt.Errorf("config processing failed: %w", err)
 	}
 	return nil
 }

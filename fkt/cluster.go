@@ -1,6 +1,7 @@
 package fkt
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -96,7 +97,7 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 			values["Source"] = source.Config()
 			values["Values"] = clusterGlobalValues.ProcessValues(source.Values)
 			log.Trace("Values: ", values.Dump())
-		
+
 			err := source.Process(settings, values, c.path())
 			if err != nil {
 				return err
@@ -197,8 +198,9 @@ func (c *Cluster) generateKustomization(destinationPath string, commonAnnotation
 		return fmt.Errorf("cannot marshal kustomization: %w", err)
 	}
 	kustomizationYAML = []byte(fmt.Sprintf("---\n%s", kustomizationYAML))
-	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
+	kustomizationYAML = bytes.TrimRight(kustomizationYAML, "\n")
 
+	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
 	if !dryRun {
 		err = utils.WriteFile(kustomizationFile, kustomizationYAML, uint32(0666), dryRun)
 		if err != nil {

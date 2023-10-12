@@ -1,9 +1,10 @@
 package fkt
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"path/filepath"
+
 	log "github.com/sirupsen/logrus"
 
 	utils "github.com/clingclangclick/fkt/utils"
@@ -62,7 +63,7 @@ func (settings *Settings) defaults(
 			log.Trace("Settings default directory base: ", utils.RelWD(cwd))
 			settings.Directories.BaseDirectory = cwd
 		} else {
-			log.Trace("Settings default directory base: ", utils.RelWD(baseDirectory))
+			log.Trace("Settings default directory base: ", utils.RelWD(baseDirectory), ", creating.")
 			settings.Directories.BaseDirectory = baseDirectory
 		}
 	}
@@ -97,7 +98,7 @@ func (settings *Settings) Validate() error {
 		return fmt.Errorf("base directory not set")
 	} else {
 		exist, err := utils.IsDir(settings.Directories.BaseDirectory)
-		if ! exist || err != nil {
+		if !exist || err != nil {
 			return fmt.Errorf("base directory does not exist: %w", err)
 		}
 	}
@@ -106,8 +107,12 @@ func (settings *Settings) Validate() error {
 		return fmt.Errorf("overlays directory not set")
 	} else {
 		exist, err := utils.IsDir(settings.overlaysPath())
-		if ! exist || err != nil {
-			return fmt.Errorf("overlays directory does not exist: %w", err)
+		if !exist || err != nil {
+			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.overlaysPath()))
+			err = os.MkdirAll(settings.overlaysPath(), 0777)
+			if err != nil {
+				return fmt.Errorf("overlays directory cannot be created: %w", err)
+			}
 		}
 	}
 
@@ -115,7 +120,7 @@ func (settings *Settings) Validate() error {
 		return fmt.Errorf("sources directory not set")
 	} else {
 		exist, err := utils.IsDir(settings.sourcesPath())
-		if ! exist || err != nil {
+		if !exist || err != nil {
 			return fmt.Errorf("sources directory does not exist: %w", err)
 		}
 	}
