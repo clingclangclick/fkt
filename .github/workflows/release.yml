@@ -42,7 +42,7 @@ jobs:
     if: needs.Changes.outputs.tag_changed == 'true'
     runs-on: ubuntu-latest
     needs:
-      - Changes
+    - Changes
     permissions:
       contents: 'write'
     outputs:
@@ -131,11 +131,11 @@ jobs:
     name: Build Binaries
     if: needs.Changes.outputs.build_changed == 'true'
     needs:
-      - Changes
-      - Tag
+    - Changes
+    - Tag
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: 'write'
     strategy:
       matrix:
         goos: [linux, darwin]
@@ -175,6 +175,9 @@ jobs:
     name: Build and Push Docker Image
     if: needs.Changes.outputs.image_changed == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      has_ssh_deploy_private_key: ${{ steps.summary.outputs.has_ssh_deploy_private_key }}
+      image: ${{ steps.summary.outputs.image }}
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -224,13 +227,116 @@ jobs:
         labels: ${{ steps.metadata.outputs.labels }}
         platforms: linux/amd64,linux/arm64
     - name: Summary
+      id: summary
       env:
+        HAS_SSH_DEPLOY_PRIVATE_KEY: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY != '' }}
         IMAGE_ID: ${{ steps.docker-build-and-push.outputs.imageid }}
+        VERSION: ${{ needs.Tag.outputs.version }}
       shell: bash
       run: |
         set -e
+        set -x
+
+        NL='
+        '
+        IMAGE="${DOCKER_REPOSITORIES%%"$NL"*}:${VERSION}"
+        (
+          echo "has_ssh_deploy_private_key=${HAS_SSH_DEPLOY_PRIVATE_KEY}"
+          echo "image=${IMAGE}"
+        ) >> "$GITHUB_OUTPUT"
+
         (
           echo '### Image Created'
+          echo "Image: ${IMAGE}"
           echo "Image Id: [${{ env.IMAGE_ID }}](${{ env.IMAGE_ID }})"
           echo "Image Tags: $(docker image inspect --format "{{.RepoTags}}" ${{ env.IMAGE_ID }})"
         ) >> "$GITHUB_STEP_SUMMARY"
+
+  Update:
+    runs-on: ubuntu-latest
+    if: needs.Changes.outputs.image_changed == 'true' && needs.Image.outputs.has_ssh_deploy_private_key == 'true'
+    permissions:
+      contents: 'write'
+    needs:
+    - Changes
+    - Image
+    - Tag
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+        persist-credentials: true
+        ref: main
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ssh-key: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY }}
+
+    - name: Update action.yml and .pre-commit-hooks.yaml
+      id: updates
+      env:
+        IMAGE: ${{ needs.Image.outputs.image }}
+      shell: bash
+      run: |
+        set -eu
+
+        EXIT_CODE=0
+        OUTPUT="$(
+          yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1 &&
+          yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
+        )" || EXIT_CODE=$?
+
+        (
+          echo "exit=${EXIT_CODE}"
+          echo 'output<<EOF'
+          echo "$OUTPUT"
+          echo 'EOF'
+        ) >> "$GITHUB_OUTPUT"
+
+    - name: Update Failure
+      if: steps.updates.outputs.exit != 0
+      uses: actions/github-script@v6
+      env:
+        OUTPUT: ${{ steps.updates.outputs.output }}
+      with:
+        script: |
+            core.setFailed(process.env.OUTPUT)
+
+    - name: Commit Changes
+      id: git-commit
+      shell: bash
+      run: |
+        set -eu
+
+        EXIT_CODE=0
+        # shellcheck disable=SC2086
+        OUTPUT="$(
+          echo Config
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          echo
+          echo Add
+          git config --global --add safe.directory "."
+          git add action.yaml .pre-commit-hooks.yaml
+          echo
+          echo Commit
+          git commit -m "[skip ci] Update External Configurations"
+          echo
+          echo Push
+          git push -f origin main
+        )" || EXIT_CODE=$?
+        (
+          echo "exit_code=$EXIT_CODE"
+          echo 'output<<EOF'
+          echo "$OUTPUT"
+          echo 'EOF'
+        ) >> "$GITHUB_OUTPUT"
+
+    - name: Commit Changes Failure
+      if: steps.git-commit.outputs.exit_code != 0
+      uses: actions/github-script@v6
+      env:
+        OUTPUT: ${{ steps.git-commit.outputs.output }}
+      with:
+        script: |
+            core.setFailed(process.env.OUTPUT)

@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${DEBUG:-0}" -ne 0 ]; then
+        set -x
+fi
+
+create_deployment_key() {
+        local gh_deploy_key_filename
+        gh_deploy_key_filename="${1?"Missing private key filename, arg 1"}"
+
+        local ssh_type ssh_key ssh_comment
+        read -r ssh_type ssh_key ssh_comment < <(ssh_public_key_from_private_key_file "$gh_deploy_key_filename")
+        TMP_KEYFILE="$(mktemp)"
+        printf "%s %s %s" "$ssh_type" "$ssh_key" "$ssh_comment" >"$TMP_KEYFILE"
+        gh repo deploy-key add "$TMP_KEYFILE" -t "$ssh_comment" -w && rm "$TMP_KEYFILE"
+}
+
+delete_deployment_key_by_title() {
+        local gh_deploy_key_title
+        gh_deploy_key_title="${1?"Missing deploy key titles to search for, arg 1"}"
+
+        read -r id _ < <(get_deployment_key_by_title "$gh_deploy_key_title")
+
+        [ -n "$id" ] && gh repo deploy-key delete "$id" || return 1
+}
+
+get_deployment_key_by_title() {
+        local gh_deploy_key_title
+        gh_deploy_key_title="${1?"Missing deploy key titles to search for, arg 1"}"
+
+        # shellcheck disable=SC2155
+        declare -a deployment_key_status="($(
+                gh repo deploy-key list \
+                        --json "id,readOnly,key,title" \
+                        -q ".[] | select(.title == \"$gh_deploy_key_title\") | [ .id, .read_only, .key, .title ] | @sh"
+        ))"
+        # Id, ReadOnly, Key, Title
+        [[ "${#deployment_key_status[*]}" -eq 4 ]] && echo "${deployment_key_status[@]}" || return 1
+}
+
+ssh_public_key_from_private_key_file() {
+        local ssh_key_private_file
+        ssh_key_private_file="${1?"Missing SSH private key filename, arg 1"}"
+        if [ -f "$ssh_key_private_file" ]; then
+                local ssh_type ssh_key ssh_comment
+                read -r ssh_type ssh_key ssh_comment < <(ssh-keygen -y -f "$ssh_key_private_file")
+                ssh_public_key=("$ssh_type" "$ssh_key" "$ssh_comment")
+                echo "${ssh_public_key[@]}"
+                return 0
+        fi
+
+        return 1
+}
+
+ssh_key_generate() {
+        local key_filename
+        key_filename="${1?"Key filename missing, arg 1"}"
+        local key_comment
+        key_comment="${2?"Key comment missing, arg 2"}"
+        local key_type="${3:-ed25519}"
+        ssh-keygen -t "$key_type" -C "$key_comment" -f "$key_filename" -q -N ""
+}
+
+GH_REPO_NAME="$(gh repo view --json "owner,name" -q '"\(.owner.login)_\(.name)"')"
+DEPLOY_KEYNAME="${DEPLOY_KEYNAME:-"${GH_REPO_NAME}_deploy_key"}"
+GH_DEPLOY_KEY="${GH_DEPLOY_KEY:-"$HOME/.ssh/$DEPLOY_KEYNAME"}"
+GH_DEPLOY_KEY_TITLE="${GH_DEPLOY_KEY_COMMENT:-"Release Action"}"
+GH_SECRET_NAME="${GH_SECRET_NAME:-"SSH_DEPLOY_PRIVATE_KEY"}"
+
+if [ ! -f "$GH_DEPLOY_KEY" ]; then
+        read -p "SSH key $GH_DEPLOY_KEY missing, Create? (Y/y) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                # shellcheck disable=SC2128
+                [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+        fi
+        ssh_key_generate "$GH_DEPLOY_KEY" "$GH_DEPLOY_KEY_TITLE"
+else
+        read -r _ _ ssh_comment < <(ssh_public_key_from_private_key_file "$GH_DEPLOY_KEY")
+        if [[ "$ssh_comment" != "$GH_DEPLOY_KEY_TITLE" ]]; then
+                echo "SSH key comment does not match supplied GH_DEPLOY_KEY_TITLE: $GH_DEPLOY_KEY_TITLE"
+                read -p "Delete SSH key $GH_DEPLOY_KEY? (Y/y) " -n 1 -r
+                echo
+                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                        # shellcheck disable=SC2128
+                        [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+                fi
+                rm -f "$GH_DEPLOY_KEY"
+                ssh_key_generate "$GH_DEPLOY_KEY" "$GH_DEPLOY_KEY_TITLE"
+        fi
+fi
+
+read -r ssh_type ssh_key ssh_comment < <(ssh_public_key_from_private_key_file "$GH_DEPLOY_KEY")
+read -r id read_only key title < <(get_deployment_key_by_title "$ssh_comment") || {
+        echo "Deploy key not found, requires creation"
+        RECREATE_DEPLOY_KEY=2
+}
+if [ "${RECREATE_DEPLOY_KEY:-0}" -eq 0 ]; then
+        if [ "$read_only" != "false" ]; then
+                echo "Current deploy key is read-only, requries recreating"
+                RECREATE_DEPLOY_KEY=1
+        fi
+        if [ "$ssh_type $ssh_key $ssh_comment" != "$key $title" ]; then
+                echo "Current deploy key does not match public key, requires recreating"
+                RECREATE_DEPLOY_KEY=1
+        fi
+fi
+if [ "${RECREATE_DEPLOY_KEY:-0}" -eq 1 ]; then
+        read -p "Delete deployment key $GH_DEPLOY_KEY_TITLE? (Y/y) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                # shellcheck disable=SC2128
+                [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+        fi
+        delete_deployment_key_by_title "$ssh_comment"
+elif [ "${RECREATE_DEPLOY_KEY:-0}" -eq 2 ]; then
+        read -p "Create deployment key $GH_DEPLOY_KEY_TITLE? (Y/y) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                # shellcheck disable=SC2128
+                [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+        fi
+        create_deployment_key "$GH_DEPLOY_KEY"
+fi
+
+read -p "Update GitHub Action Secret $GH_SECRET_NAME? (Y/y) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        # shellcheck disable=SC2128
+        [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1
+fi
+gh secret set "$GH_SECRET_NAME" -a "actions" -b "$(cat "$GH_DEPLOY_KEY")"

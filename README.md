@@ -105,7 +105,7 @@ data:
   value: [[[ .Values.data ]]]
 ```
 
-## Cluster Overlays
+## Cluster paths
 
 Overlay cluster paths are in the form:
 `<platform>/<region>/<environment>/<name>`
@@ -131,7 +131,7 @@ Evaluation order:
 * Cluster
 * Source
 
-### Sprig Templating Functions
+### Sprig templating functions
 
 Templating uses [sprig](http://masterminds.github.io/sprig/) functions.
 
@@ -156,7 +156,7 @@ keys: "cluster_array_keys"
 array_keys: cluster_array_value
 ```
 
-### YAML Multiline
+### YAML multiline values
 
 YAML [multiline string](https://yaml-multiline.info/) values are supported, 
 but due to templating quotes may need doubled.
@@ -226,11 +226,11 @@ inline_single_quoted: 'Several lines of text, ·containing ''single quotes''. Es
   Newlines can be added by leaving a blank line. Leading whitespace on lines is ignored.'
 ```
 
-### Global Values
+### Global values
 
 Global valuse are in the upper-level schema.
 
-### Cluster Values
+### Cluster values
 
 Access as `.Cluster.<property>`
 
@@ -241,7 +241,7 @@ Properties:
 * `environment`
 * `name`
 
-### Source Values
+### Source values
 
 Access as `.Source.<property>`
 
@@ -276,9 +276,9 @@ update the repository to include a `flux-system` path in the cluster overlay. Pu
 may have altered the default branch. Running `fkt` again will add the `flux-system` Kustomizations
 to the cluster Kustomization.
 
-## YAML Spec
+## YAML spec
 
-### Config Type
+### Config type
 
 ```golang
 type Config struct {
@@ -288,7 +288,7 @@ type Config struct {
 }
 ```
 
-### Settings Type
+### Settings type
 
 ```golang
 type Settings struct {
@@ -306,7 +306,7 @@ type Settings struct {
 }
 ```
 
-#### LogConfig Type
+#### LogConfig type
 
 ```golang
 type LogConfig struct {
@@ -316,7 +316,7 @@ type LogConfig struct {
 }
 ```
 
-### Cluster Type
+### Cluster type
 
 ```golang
 type Cluster struct {
@@ -330,7 +330,7 @@ type Cluster struct {
 }
 ```
 
-### Source Type
+### Source type
 
 ```golang
 type Source struct {
@@ -341,7 +341,7 @@ type Source struct {
 }
 ```
 
-## Pre-Commit Config
+## Pre-Commit config
 
 A pre-commit config can be used to automatically update the cluster overlays
 after changing the configuration.
@@ -355,7 +355,7 @@ after changing the configuration.
     args: [-l, debug]
 ```
 
-## GitHub Action
+## GitHub action
 
 A GitHub `action.yml` is included to verify that the supplied configuration
 would be unchanged to ensure the configuration output is consistent with
@@ -392,3 +392,16 @@ A PAT is required to load the repo into the GH working directory.
       with:
         log-level: debug
 ```
+
+## Automated action and pre-commit hooks update
+
+GitHub action and pre-commit versions can update automatically after image push if
+`SSH_DEPLOY_PRIVATE_KEY` secret is set. A `read-write` deployment key is sufficient for this
+when branch protection rules are properly set.
+
+![Restrict pushes that create matching branches](./.README.md/restrict_pushers_branch_protection_setting.png)
+
+### `SSH_DEPLOY_PRIVATE_KEY` Secret and Deploy Key Management
+
+Manage repository deployment key and set the GitHub `SSH_DEPLOY_PRIVATE_KEY` action secret
+with the `bin/manage_deploy_key` script.
