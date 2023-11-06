@@ -317,7 +317,7 @@ jobs:
           echo
           echo Add
           git config --global --add safe.directory "."
-          git add action.yaml .pre-commit-hooks.yaml
+          git add action.yml .pre-commit-hooks.yaml
           echo
           echo Commit
           git commit -m "[skip ci] Update External Configurations"
