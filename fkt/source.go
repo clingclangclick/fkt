@@ -141,7 +141,7 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 			}
 		} else {
 			destinationEntryPath := filepath.Join(destinationPath, entry)
-			values.Template(sourceEntryPath, destinationEntryPath, settings)
+			err := values.Template(sourceEntryPath, destinationEntryPath, settings)
 			if err != nil {
 				return err
 			}

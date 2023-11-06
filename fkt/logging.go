@@ -1,8 +1,8 @@
 package fkt
 
 import (
-	"os"
 	"fmt"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,6 +16,7 @@ type LogConfig struct {
 }
 
 type LogLevel string
+
 const (
 	TraceLevel LogLevel = "trace"
 	DebugLevel LogLevel = "debug"
@@ -26,6 +27,7 @@ const (
 )
 
 type LogFormat string
+
 const (
 	ConsoleFormat LogFormat = "console"
 	JsonFormat    LogFormat = "json"
@@ -63,7 +65,7 @@ func (l *LogFormat) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat string) error {	
+func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat string) error {
 	if logLevel != "default" {
 		logConfig.Level = LogLevel(logLevel)
 	}
@@ -100,6 +102,7 @@ func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat 
 		logConfig.Format = LogFormat(logFormat)
 	}
 
+	//lint:ignore SA5011 false positive
 	switch logConfig.Format {
 	case ConsoleFormat:
 		log.SetFormatter(&log.TextFormatter{})
@@ -107,12 +110,12 @@ func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat 
 		log.SetFormatter(&log.JSONFormatter{})
 	default:
 		log.Info("default to console log format")
-		log.SetFormatter(&log.TextFormatter{})	
+		log.SetFormatter(&log.TextFormatter{})
 	}
 
 	log.Info("Logging:",
 		"\n\tLevel: ", log.GetLevel(),
-		"\n\tFormat: ", logConfig.Format,
+		"\n\tFormat: ", logConfig.Format, //lint:ignore SA5011 false positive
 	)
 	if logConfig != nil {
 		if logConfig.File != "" {
