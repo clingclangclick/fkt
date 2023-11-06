@@ -17,9 +17,9 @@ var CLI struct {
 	BaseDirectory string `type:"existingdirectory" short:"b" help:"Sources and overlays base directory" env:"BASE_DIRECTORY" default:"${base_directory}"`
 	DryRun        bool   `short:"d" help:"Validate and return error if changes are needed" env:"DRY_RUN" default:"false"`
 	Logging       struct {
-		Level string `enum:"default,none,trace,debug,info,warn,error" short:"l" help:"Log level" env:"LOG_LEVEL" default:"${logging_level}"`
-		File  string `type:"path" short:"o" help:"Log file" env:"LOG_FILE"`
-		Type  string `enum:"default,console,json" short:"t" help:"Log format" env:"LOG_FORMAT" default:"${logging_type}"`
+		Level  string `enum:"default,none,trace,debug,info,warn,error" short:"l" help:"Log level" env:"LOG_LEVEL" default:"${logging_level}"`
+		File   string `type:"path" short:"o" help:"Log file" env:"LOG_FILE"`
+		Format string `enum:"default,console,json" short:"t" help:"Log format" env:"LOG_FORMAT" default:"${logging_format}"`
 	} `embed:"" prefix:"logging."`
 }
 
@@ -34,7 +34,7 @@ func main() {
 		kong.Vars{
 			"base_directory": utils.RelWD(cwd),
 			"logging_level":  "default",
-			"logging_type":   "default",
+			"logging_format": "default",
 		},
 	)
 
@@ -55,15 +55,19 @@ func main() {
 		ctx.Exit(1)
 	}
 
-	config, err := fkt.LoadConfig(CLI.ConfigFile,
-		CLI.BaseDirectory,
-		CLI.DryRun,
-		CLI.Logging.Level,
-		CLI.Logging.File,
-		CLI.Logging.Type,
-	)
+	config, err := fkt.LoadConfig(CLI.ConfigFile)
 	if err != nil {
 		log.Panic("Error loading config file: ", CLI.ConfigFile, " (", err, ")")
+		ctx.Exit(1)
+	}
+
+	err = config.Settings.Defaults(CLI.BaseDirectory, CLI.DryRun, fkt.LogConfig{
+		Level:  fkt.LogLevel(CLI.Logging.Level),
+		Format: fkt.LogFormat(CLI.Logging.Format),
+		File:   CLI.Logging.File,
+	})
+	if err != nil {
+		log.Panic("Error setting configuration; ", err)
 		ctx.Exit(1)
 	}
 

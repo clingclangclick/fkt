@@ -18,12 +18,13 @@ type LogConfig struct {
 type LogLevel string
 
 const (
-	TraceLevel LogLevel = "trace"
-	DebugLevel LogLevel = "debug"
-	InfoLevel  LogLevel = "info"
-	WarnLevel  LogLevel = "warn"
-	ErrorLevel LogLevel = "error"
-	PanicLevel LogLevel = "none"
+	TraceLevel   LogLevel = "trace"
+	DebugLevel   LogLevel = "debug"
+	InfoLevel    LogLevel = "info"
+	WarnLevel    LogLevel = "warn"
+	ErrorLevel   LogLevel = "error"
+	PanicLevel   LogLevel = "none"
+	DefaultLevel LogLevel = "none"
 )
 
 type LogFormat string
@@ -31,6 +32,7 @@ type LogFormat string
 const (
 	ConsoleFormat LogFormat = "console"
 	JsonFormat    LogFormat = "json"
+	DefaultFormat LogFormat = "console"
 )
 
 func (l *LogLevel) UnmarshalYAML(value *yaml.Node) error {
@@ -65,9 +67,9 @@ func (l *LogFormat) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat string) error {
-	if logLevel != "default" {
-		logConfig.Level = LogLevel(logLevel)
+func (logConfig *LogConfig) Settings(logConfigOverride LogConfig) error {
+	if logConfigOverride.Level != "default" {
+		logConfig.Level = logConfigOverride.Level
 	}
 
 	switch logConfig.Level {
@@ -85,8 +87,8 @@ func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat 
 		log.SetLevel(log.PanicLevel)
 	}
 
-	if logFile != "" {
-		logConfig.File = logFile
+	if logConfigOverride.File != "" {
+		logConfig.File = logConfigOverride.File
 	}
 
 	if logConfig.File != "" {
@@ -98,11 +100,10 @@ func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat 
 		}
 	}
 
-	if logFormat != "default" {
-		logConfig.Format = LogFormat(logFormat)
+	if logConfigOverride.Format != "default" {
+		logConfig.Format = logConfigOverride.Format
 	}
 
-	//lint:ignore SA5011 false positive
 	switch logConfig.Format {
 	case ConsoleFormat:
 		log.SetFormatter(&log.TextFormatter{})
@@ -115,12 +116,11 @@ func (logConfig *LogConfig) Settings(logLevel string, logFile string, logFormat 
 
 	log.Info("Logging:",
 		"\n\tLevel: ", log.GetLevel(),
-		"\n\tFormat: ", logConfig.Format, //lint:ignore SA5011 false positive
+		"\n\tFormat: ", logConfig.Format,
 	)
-	if logConfig != nil {
-		if logConfig.File != "" {
-			log.Debug("\n\tFile: ", logConfig.File)
-		}
+
+	if logConfig.File != "" {
+		log.Debug("\n\tFile: ", logConfig.File)
 	}
 
 	return nil
