@@ -33,7 +33,12 @@ values:
     - global_slice_two
 clusters:
   - platform: platform
-    name: name
+    name: unmanaged
+    region: region
+    environment: environment
+    managed: false
+  - platform: platform
+    name: managed
     region: region
     environment: environment
     managed: true
