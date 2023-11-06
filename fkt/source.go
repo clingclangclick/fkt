@@ -62,23 +62,29 @@ func (s *Source) Validate(settings *Settings, name string) error {
 		path := filepath.Join(settings.sourcesPath(), *s.Origin)
 		_, err := utils.IsDir(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("source validation failed for: %s", name)
 		}
 	}
 	return nil
+}
+
+func (s *Source) DestinationPath(settings *Settings, clusterPath string) string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
+}
+
+func (s *Source) SourcePath(settings *Settings) string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
 }
 
 func (s *Source) Process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
 	subPath := ""
 	if len(subPaths) > 0 {
 		subPathSlice := []string{}
-		for _, subPathEntry := range subPaths {
-			subPathSlice = append(subPathSlice, subPathEntry)
-		}
+		subPathSlice = append(subPathSlice, subPaths...)
 		subPath = filepath.Join(subPathSlice...)
 	}
-	sourcePath := filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin, subPath)
-	destinationPath := filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name, subPath)
+	sourcePath := filepath.Join(s.SourcePath(settings), subPath)
+	destinationPath := filepath.Join(s.DestinationPath(settings, clusterPath), subPath)
 
 	log.Debug("Source path: ", utils.RelWD(sourcePath))
 	log.Debug("Destination path: ", utils.RelWD(destinationPath))
@@ -95,12 +101,11 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 
 	de, err := utils.IsDir(sourcePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("is not a directory: %s", sourcePath)
 	}
 
-	_, err = utils.IsRegular(filepath.Join(sourcePath, "kustomization.yaml"))
-	if err != nil {
-		return err
+	if !utils.ContainsKustomization(sourcePath) {
+		return fmt.Errorf("kustomization file does not exist in: %s", sourcePath)
 	}
 
 	if !de {

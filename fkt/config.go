@@ -1,11 +1,11 @@
 package fkt
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	utils "github.com/clingclangclick/fkt/utils"
@@ -26,16 +26,19 @@ func (config *Config) defaults() {
 func (config *Config) Validate() error {
 	log.Info("Validating configuration...")
 
-	var eg = new(errgroup.Group)
+	invalid := []string{}
+	errs := errors.New("error processing")
 	for _, cluster := range config.Clusters {
-		func(config *Config) {
-			eg.Go(func() error {
-				return cluster.Validate(config)
-			})
-		}(config)
+		err := cluster.Validate(config.Settings)
+		if err != nil {
+			log.Error("cannot validate cluster: ", cluster.clusterPath())
+			invalid = append(invalid, cluster.clusterPath())
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.clusterPath(), errs, err)
+		}
 	}
-	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("configuration validation failed: %w", errs)
 	}
 	return nil
 }
@@ -43,16 +46,19 @@ func (config *Config) Validate() error {
 func (config *Config) Process() error {
 	log.Info("Processing configuration...")
 
-	var eg = new(errgroup.Group)
+	invalid := []string{}
+	errs := errors.New("error processing")
 	for _, cluster := range config.Clusters {
-		func(config *Config) {
-			eg.Go(func() error {
-				return cluster.Process(config.Settings, config.Values)
-			})
-		}(config)
+		err := cluster.Process(config.Settings, config.Values)
+		if err != nil {
+			log.Error("cannot process cluster: ", cluster.clusterPath())
+			invalid = append(invalid, cluster.clusterPath())
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.clusterPath(), errs, err)
+		}
 	}
-	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("config processing failed: %w", err)
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("processing failed: %w", errs)
 	}
 	return nil
 }
@@ -72,6 +78,9 @@ func LoadConfig(configurationFile,
 		return &config, err
 	}
 	err = yaml.Unmarshal(configurationBytes, &config)
+	if err != nil {
+		return &config, err
+	}
 	if config.Settings == nil {
 		config.Settings = &Settings{}
 	}

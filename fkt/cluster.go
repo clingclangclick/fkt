@@ -25,19 +25,12 @@ type Cluster struct {
 	Sources     map[string]*Source `yaml:"sources"`
 }
 
-func (c *Cluster) path() string {
+func (c *Cluster) clusterPath() string {
 	return filepath.Join(c.Platform, c.Environment, c.Region, c.Name)
 }
 
-func (c *Cluster) destination(settings *Settings) string {
-	return filepath.Join(settings.overlaysPath(), c.path())
-}
-
-func (c *Cluster) Defaults(settings *Settings) {
-	if c.Values == nil {
-		log.Debug("Cluster ", c.Name, " has no values")
-		c.Values = make(Values)
-	}
+func (c *Cluster) overlayPath(settings *Settings) string {
+	return filepath.Join(settings.overlaysPath(), c.clusterPath())
 }
 
 func (c *Cluster) Config() map[string]string {
@@ -51,12 +44,12 @@ func (c *Cluster) Config() map[string]string {
 	return config
 }
 
-func (c *Cluster) Validate(config *Config) error {
-	log.Info("Validating cluster: ", c.path())
+func (c *Cluster) Validate(settings *Settings) error {
+	log.Info("Validating cluster: ", c.Name)
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)
-		err := source.Validate(config.Settings, name)
+		err := source.Validate(settings, name)
 		if err != nil {
 			return err
 		}
@@ -66,49 +59,82 @@ func (c *Cluster) Validate(config *Config) error {
 }
 
 func (c *Cluster) Process(settings *Settings, globalValues Values) error {
-	log.Info("Processing cluster path: ", c.path())
-
-	c.Defaults(settings)
-	if c.Managed {
-		log.Info("Managed cluster")
+	if c.Values == nil {
+		log.Debug("Cluster ", c.Name, " has no values")
+		c.Values = Values{}
 	}
 
 	clusterGlobalValues := globalValues.ProcessValues(c.Values)
 	log.Debug("clusterGlobalValues: ", clusterGlobalValues.Dump())
 
-	if c.Managed {
-		err := c.mkCleanDir(settings)
-		if err != nil {
-			return fmt.Errorf("cannot create and clean directory: %w", err)
-		}
+	err := utils.MkDir(c.overlayPath(settings), settings.DryRun)
+	if err != nil {
+		return err
 	}
 
+	processedSources := []string{}
 	for sourceName, source := range c.Sources {
 		if source == nil {
 			source = &Source{}
 		}
 		source.Defaults(sourceName)
 
-		if *source.Managed {
-			log.Info("Processing Source: ", *source.Origin, ", into ", c.path(), "/", sourceName)
-			values := make(Values)
+		processedSources = append(processedSources, sourceName)
 
-			values["Cluster"] = c.Config()
-			values["Source"] = source.Config()
-			values["Values"] = clusterGlobalValues.ProcessValues(source.Values)
-			log.Trace("Values: ", values.Dump())
-
-			err := source.Process(settings, values, c.path())
-			if err != nil {
-				return err
-			}
-		} else {
+		if !*source.Managed {
 			log.Info("Skipping unmanaged source: ", sourceName)
+			continue
+		}
+
+		log.Info("Processing Source: ", *source.Origin, ", into ", c.Name, "/", sourceName)
+		values := make(Values)
+
+		values["Cluster"] = c.Config()
+		values["Source"] = source.Config()
+		values["Values"] = clusterGlobalValues.ProcessValues(source.Values)
+		log.Trace("Values: ", values.Dump())
+
+		err := source.Process(settings, values, c.clusterPath())
+		if err != nil {
+			return err
+		}
+	}
+
+	sourceEntries, err := os.ReadDir(c.overlayPath(settings))
+	if err != nil {
+		return fmt.Errorf("%w, cannot get listing of sources in cluster path: %s", err, c.overlayPath(settings))
+	}
+
+	log.Trace("Checking entries: ", sourceEntries)
+	removableSourcePaths := []string{}
+	for _, sourceEntry := range sourceEntries {
+		sourceEntryName := sourceEntry.Name()
+		sourcePath := filepath.Join(c.overlayPath(settings), sourceEntryName)
+		exists, err := utils.IsDir(sourcePath)
+		if settings.DryRun {
+			if exists {
+				return fmt.Errorf("%s exists when it should not", sourcePath)
+			} else {
+				return nil
+			}
+		}
+		if !os.IsExist(err) {
+			if !slices.Contains(processedSources, sourceEntryName) {
+				removableSourcePaths = append(removableSourcePaths, sourcePath)
+			}
 		}
 	}
 
 	if c.Managed {
-		err := c.generateKustomization(c.destination(settings), c.Config(), settings.DryRun)
+		log.Debug("Removing unnecessary source destination paths: ", removableSourcePaths)
+		for _, removableSourcePath := range removableSourcePaths {
+			err := os.RemoveAll(removableSourcePath)
+			if err != nil {
+				return fmt.Errorf("could not remove unnecessary source destination path: %s", removableSourcePath)
+			}
+		}
+
+		err := c.generateKustomization(settings, c.overlayPath(settings), c.Config(), settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -124,7 +150,7 @@ type kustomization struct {
 	Resources         []string          `yaml:"resources"`
 }
 
-func (c *Cluster) kustomizationResources(destinationPath string) ([]string, error) {
+func (c *Cluster) kustomizationResources(settings *Settings, destinationPath string) ([]string, error) {
 	resources := []string{}
 
 	for sourceName, source := range c.Sources {
@@ -170,13 +196,14 @@ func (c *Cluster) kustomizationResources(destinationPath string) ([]string, erro
 	return resources, nil
 }
 
-func (c *Cluster) generateKustomization(destinationPath string, commonAnnotations map[string]string, dryRun bool) error {
-	resources, err := c.kustomizationResources(destinationPath)
+func (c *Cluster) generateKustomization(settings *Settings, destinationPath string, commonAnnotations map[string]string, dryRun bool) error {
+	resources, err := c.kustomizationResources(settings, destinationPath)
 	if err != nil {
 		return fmt.Errorf("cannot generate kustomization resources: %w", err)
 	}
 
 	if len(resources) == 0 {
+		log.Warn("No kustomization resources for cluster: ", c.clusterPath())
 		return nil
 	}
 
@@ -211,21 +238,21 @@ func (c *Cluster) generateKustomization(destinationPath string, commonAnnotation
 	return nil
 }
 
-func (c *Cluster) mkCleanDir(settings *Settings) error {
-	unmanaged := []string{}
-	for sourceName, source := range c.Sources {
-		if source != nil {
-			if !*source.Managed {
-				unmanaged = append(unmanaged, sourceName)
-			}
-		}
-	}
+// func (c *Cluster) mkCleanDir(settings *Settings) error {
+// 	unmanaged := []string{}
+// 	for sourceName, source := range c.Sources {
+// 		if source != nil {
+// 			if !*source.Managed {
+// 				unmanaged = append(unmanaged, sourceName)
+// 			}
+// 		}
+// 	}
 
-	log.Debug("Unmanaged sources: ", unmanaged)
-	err := utils.MkCleanDir(c.destination(settings), unmanaged, settings.DryRun)
-	if err != nil {
-		return err
-	}
+// 	log.Debug("Unmanaged sources: ", unmanaged)
+// 	err := utils.MkCleanDir(c.overlayPath(settings), unmanaged, settings.DryRun)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

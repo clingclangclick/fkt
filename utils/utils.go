@@ -40,8 +40,26 @@ func MkCleanDir(path string, protected []string, dryRun bool) error {
 	return RmDir(path, protected, dryRun)
 }
 
+func MkDir(path string, dryRun bool) error {
+	exists, err := IsDir(path)
+	if dryRun {
+		if !exists {
+			return fmt.Errorf("%s does not exist or is not a directory", path)
+		} else {
+			return nil
+		}
+	}
+	if os.IsNotExist(err) {
+		err = os.MkdirAll(path, 0777)
+		return err
+	}
+
+	return nil
+}
+
 func IsDir(path string) (bool, error) {
 	log.Trace("IsDir: ", path)
+
 	s, err := os.Stat(path)
 	if err != nil {
 		return false, err
@@ -50,13 +68,18 @@ func IsDir(path string) (bool, error) {
 	return s.IsDir(), nil
 }
 
-func IsRegular(path string) (bool, error) {
+func IsFile(path string) (bool, error) {
 	log.Trace("IsRegular: ", path)
 	s, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
 	return s.Mode().IsRegular(), nil
+}
+
+func IsExist(path string) bool {
+	_, err := os.Stat(path)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func ContainsKustomization(path string) bool {
@@ -71,9 +94,9 @@ func ContainsKustomization(path string) bool {
 	}
 
 	for _, kustomization := range kustomizations {
-		ft, err := IsRegular(filepath.Join(path, kustomization))
+		ft, err := IsFile(filepath.Join(path, kustomization))
 		if ft && err == nil {
-			log.Trace("Found ", kustomizations, " in ", path)
+			log.Trace("Found one of ", kustomizations, " in ", path)
 			return true
 		}
 	}

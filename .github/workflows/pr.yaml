@@ -1,0 +1,36 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    - ready_for_review
+    - reopened
+
+permissions:
+  contents: 'read'
+  pull-requests: 'read'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - uses: arnested/go-version-action@v1
+      id: go-version
+    - name: Install Go ${{ steps.go-version.outputs.minimal }}
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ steps.go-version.outputs.minimal }}
+        check-latest: true
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        only-new-issues: true
+        install-mode: "goinstall"
