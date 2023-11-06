@@ -14,10 +14,9 @@ inputs:
     description: 'Logging level'
     required: false
     default: 'warn'
-
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/clingclangclick/fkt/fkt:0.3.0'
+  image: 'docker://ghcr.io/clingclangclick/fkt/fkt:0.5.0'
   args:
     - --base-directory
     - ${{ inputs.base-directory }}
