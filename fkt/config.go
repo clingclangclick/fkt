@@ -17,12 +17,6 @@ type Config struct {
 	Clusters []Cluster `yaml:"clusters"`
 }
 
-func (config *Config) defaults() {
-	if config.Settings == nil {
-		config.Settings = &Settings{}
-	}
-}
-
 func (config *Config) Validate() error {
 	log.Info("Validating configuration...")
 
@@ -63,15 +57,8 @@ func (config *Config) Process() error {
 	return nil
 }
 
-func LoadConfig(configurationFile,
-	baseDirectory string,
-	dryRun bool,
-	logLevel string,
-	logFile string,
-	logFormat string,
-) (*Config, error) {
+func LoadConfig(configurationFile string) (*Config, error) {
 	config := Config{}
-	config.defaults()
 
 	configurationBytes, err := os.ReadFile(configurationFile)
 	if err != nil {
@@ -81,12 +68,9 @@ func LoadConfig(configurationFile,
 	if err != nil {
 		return &config, err
 	}
+
 	if config.Settings == nil {
 		config.Settings = &Settings{}
-	}
-	err = config.Settings.defaults(baseDirectory, dryRun, logLevel, logFile, logFormat)
-	if err != nil {
-		return &config, err
 	}
 
 	log.Info("Loaded configuration: ", utils.RelWD(configurationFile))

@@ -237,22 +237,3 @@ func (c *Cluster) generateKustomization(settings *Settings, destinationPath stri
 
 	return nil
 }
-
-// func (c *Cluster) mkCleanDir(settings *Settings) error {
-// 	unmanaged := []string{}
-// 	for sourceName, source := range c.Sources {
-// 		if source != nil {
-// 			if !*source.Managed {
-// 				unmanaged = append(unmanaged, sourceName)
-// 			}
-// 		}
-// 	}
-
-// 	log.Debug("Unmanaged sources: ", unmanaged)
-// 	err := utils.MkCleanDir(c.overlayPath(settings), unmanaged, settings.DryRun)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }

@@ -134,14 +134,14 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 		if err != nil {
 			return err
 		}
-		if dt {
-			err = s.Process(settings, values, clusterPath, sourceEntryPath)
+		if !dt {
+			destinationEntryPath := filepath.Join(destinationPath, entry)
+			err := values.Template(sourceEntryPath, destinationEntryPath, settings)
 			if err != nil {
 				return err
 			}
 		} else {
-			destinationEntryPath := filepath.Join(destinationPath, entry)
-			err := values.Template(sourceEntryPath, destinationEntryPath, settings)
+			err = s.Process(settings, values, clusterPath, sourceEntryPath)
 			if err != nil {
 				return err
 			}

@@ -18,7 +18,7 @@ Flags:
   -d, --dry-run                      Validate and return error if changes are needed ($DRY_RUN)
   -l, --logging.level="info"         Log level ($LOG_LEVEL)
   -o, --logging.file=STRING          Log file ($LOG_FILE)
-  -t, --logging.type="console"       Log format ($LOG_FORMAT)
+  -t, --logging.format="console"     Log format ($LOG_FORMAT)
 ```
 
 ### Example

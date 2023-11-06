@@ -31,17 +31,15 @@ type Settings struct {
 	LogConfig *LogConfig `yaml:"log"`
 }
 
-func (settings *Settings) defaults(
+func (settings *Settings) Defaults(
 	baseDirectory string,
 	dryRun bool,
-	logLevel string,
-	logFile string,
-	logFormat string,
+	logConfig LogConfig,
 ) error {
 	if settings.LogConfig == nil {
 		settings.LogConfig = &LogConfig{}
 	}
-	err := settings.LogConfig.Settings(logLevel, logFile, logFormat)
+	err := settings.LogConfig.Settings(logConfig)
 	if err != nil {
 		return fmt.Errorf("error setting log configuration: %w", err)
 	}
