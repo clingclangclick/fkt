@@ -214,6 +214,7 @@ func (c *Cluster) generateKustomization(settings *Settings, destinationPath stri
 	if !isDir {
 		return fmt.Errorf("path is not directory: %s", destinationPath)
 	}
+
 	kustomizationYAML, err := yaml.Marshal(&kustomization{
 		Kind:              "Kustomization",
 		APIVersion:        "kustomize.config.k8s.io/v1beta1",
