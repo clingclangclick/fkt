@@ -75,6 +75,7 @@ func (settings *Settings) Defaults(
 		settings.Delimiters.Right = settingsDefaults["delimiter_right"]
 	}
 
+	log.Info("Settings")
 	log.Info("Dry run: ", settings.DryRun)
 	log.Info("Base Directory: ", settings.Directories.BaseDirectory)
 	log.Info("Sources Directory: ", settings.Directories.Sources)
