@@ -1,7 +1,6 @@
 package fkt
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -225,7 +224,6 @@ func (c *Cluster) generateKustomization(settings *Settings, destinationPath stri
 		return fmt.Errorf("cannot marshal kustomization: %w", err)
 	}
 	kustomizationYAML = []byte(fmt.Sprintf("---\n%s", kustomizationYAML))
-	kustomizationYAML = bytes.TrimRight(kustomizationYAML, "\n")
 
 	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
 	if !dryRun {
