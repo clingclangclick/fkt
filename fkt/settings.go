@@ -76,15 +76,11 @@ func (settings *Settings) Defaults(
 	}
 
 	log.Info("Dry run: ", settings.DryRun)
-	log.Info("Directories:",
-		"\n\tBase Directory: ", settings.Directories.BaseDirectory,
-		"\n\tSources Directory: ", settings.Directories.Sources,
-		"\n\tOverlays Directory: ", settings.Directories.Overlays,
-	)
-	log.Info("Delimiters:",
-		"\n\tLeft: ", settings.Delimiters.Left,
-		"\n\tRight: ", settings.Delimiters.Right,
-	)
+	log.Info("Base Directory: ", settings.Directories.BaseDirectory)
+	log.Info("Sources Directory: ", settings.Directories.Sources)
+	log.Info("Overlays Directory: ", settings.Directories.Overlays)
+	log.Info("Left Delimiter: ", settings.Delimiters.Left)
+	log.Info("Right Delimiter: ", settings.Delimiters.Right)
 
 	return nil
 }

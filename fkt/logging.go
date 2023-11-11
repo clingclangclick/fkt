@@ -114,13 +114,10 @@ func (logConfig *LogConfig) Settings(logConfigOverride LogConfig) error {
 		log.SetFormatter(&log.TextFormatter{})
 	}
 
-	log.Info("Logging:",
-		"\n\tLevel: ", log.GetLevel(),
-		"\n\tFormat: ", logConfig.Format,
-	)
-
+	log.Info("Logging Level: ", log.GetLevel())
+	log.Info("Logging Format: ", logConfig.Format)
 	if logConfig.File != "" {
-		log.Debug("\n\tFile: ", logConfig.File)
+		log.Info("Logging File: ", logConfig.File)
 	}
 
 	return nil
