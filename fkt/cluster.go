@@ -160,6 +160,7 @@ func (c *Cluster) kustomizationResources(settings *Settings, destinationPath str
 		if !*source.Managed {
 			continue
 		}
+
 		resources = append(resources, sourceName)
 	}
 

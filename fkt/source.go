@@ -46,6 +46,14 @@ func (s *Source) Defaults(name string) {
 	}
 }
 
+func (s *Source) DestinationPath(settings *Settings, clusterPath string) string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
+}
+
+func (s *Source) SourcePath(settings *Settings) string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
+}
+
 func (s *Source) Config() map[string]string {
 	config := make(map[string]string)
 
@@ -67,14 +75,6 @@ func (s *Source) Validate(settings *Settings, name string) error {
 	}
 
 	return nil
-}
-
-func (s *Source) DestinationPath(settings *Settings, clusterPath string) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
-}
-
-func (s *Source) SourcePath(settings *Settings) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
 }
 
 func (s *Source) Process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
