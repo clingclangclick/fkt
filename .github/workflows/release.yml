@@ -93,6 +93,8 @@ jobs:
           POSITION=1
         fi
 
+        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
+
         # Version sort is _not_ semver
         CURRENT_TAG="$(git tag -l "v*" 2>/dev/null | sort -Vr | head -n1)"
         CURRENT_VERSION="${CURRENT_TAG##v}"
@@ -103,8 +105,6 @@ jobs:
         export IMAGE
         yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1
         yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
-
-        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
 
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config user.name "github-actions[bot]"
