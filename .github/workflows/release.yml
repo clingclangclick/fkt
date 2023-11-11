@@ -1,5 +1,8 @@
 name: "Release"
 
+env:
+  DOCKER_REPOSITORY: ghcr.io/${{ github.repository }}/fkt
+
 on:
   pull_request:
     types:
@@ -19,6 +22,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       with:
+        fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
         persist-credentials: true
 
     - name: Changed Files
@@ -53,22 +57,16 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        fetch-depth: 0
-        ref: main
-
+  
     - name: Tag
       id: tag
       env:
         BODY: ${{ github.event.pull_request.body }}
+        GH_TOKEN: ${{ github.token }}
         TITLE: ${{ github.event.pull_request.title }}
       shell: bash
       run: |
         set -euo pipefail
-
-        git config user.name "${{ github.actor }}"
-        git config user.email "${{ github.actor }}@users.noreply.github.com"
 
         # Increment Tag Version
         # $1 - version (semver)
@@ -94,13 +92,34 @@ jobs:
           POSITION=1
         fi
 
-        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
-
         # Version sort is _not_ semver
         CURRENT_TAG="$(git tag -l "v*" 2>/dev/null | sort -Vr | head -n1)"
         CURRENT_VERSION="${CURRENT_TAG##v}"
         THIS_VERSION="$(increment_version "${CURRENT_VERSION:-0.0.0}" "$POSITION")"
         TAG_VERSION="v$THIS_VERSION"
+
+        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
+
+        IMAGE="${DOCKER_REPOSITORY}:${THIS_VERSION}"
+        yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1
+        yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
+
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git config --global --add safe.directory "."
+        git add action.yml .pre-commit-hooks.yaml
+        git commit -m "[skip ci] Update External Configurations" 2>&1
+
+        REV="$(git rev-parse HEAD)"
+        git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "${REV}"
+        git push --follow-tags --force origin "$TAG_VERSION"
+  
+        gh_opts=(--generate-notes --latest --target "${REV}" --verify-tag)
+        if [ -z "${CURRENT_TAG+x}" ]; then
+          gh_opts+=(--notes-start-tag "${CURRENT_TAG:-v0.0.0}")
+        fi
+        # shellcheck disable=SC2068
+        gh release create "$TAG_VERSION" ${gh_opts[@]}
 
         (
           echo previous_tag="${CURRENT_TAG:-v0.0.0}"
@@ -108,26 +127,6 @@ jobs:
           echo tag="$TAG_VERSION"
           echo version="$THIS_VERSION"
         ) >> "$GITHUB_OUTPUT"
-
-        git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" ${{ github.sha }}
-        git push --follow-tags --force origin "$TAG_VERSION"
-
-    - name: Release
-      id: release
-      env:
-        GH_TOKEN: ${{ github.token }}
-        PREVIOUS_TAG: ${{ steps.tag.outputs.previous_tag }}
-        TAG: ${{ steps.tag.outputs.tag }}
-        VERSION: ${{ steps.tag.outputs.version }}
-      shell: bash
-      run: |
-        set -eu
-        gh_opts=(--generate-notes --target ${{ github.sha }} --verify-tag)
-        if [ "$PREVIOUS_TAG" != "v0.0.0" ]; then
-          gh_opts+=(--notes-start-tag "$PREVIOUS_TAG")
-        fi
-        # shellcheck disable=SC2068
-        gh release create "$TAG" ${gh_opts[@]}
 
   Build:
     name: Build Binaries
@@ -160,24 +159,15 @@ jobs:
       env:
         BIN: ${{github.repository}}-${{ matrix.goos }}-${{ matrix.goarch }}
         CGO_ENABLED: 0
+        GH_TOKEN: ${{ github.token }}
         GOARCH: ${{ matrix.goarch }}
         GOOS: ${{ matrix.goos }}
-      shell: bash
-      run: |
-        set -e
-
-        go build -o "$BIN"
-        echo "bin=$BIN" >> "$GITHUB_OUTPUT"
-
-    - name: Release
-      env:
-        BIN: ${{ steps.build.outputs.bin }}
-        GH_TOKEN: ${{ github.token }}
         TAG: ${{ needs.Tag.outputs.tag }}
       shell: bash
       run: |
         set -e
 
+        go build -o "$BIN"
         gh release upload "$TAG" "$BIN" --clobber
 
   Image:
@@ -185,7 +175,6 @@ jobs:
     if: needs.Changes.outputs.image_changed == 'true'
     runs-on: ubuntu-latest
     outputs:
-      has_ssh_deploy_private_key: ${{ steps.summary.outputs.has_ssh_deploy_private_key }}
       image: ${{ steps.summary.outputs.image }}
     permissions:
       contents: 'read'
@@ -194,9 +183,6 @@ jobs:
     needs:
       - Changes
       - Tag
-    env:
-      DOCKER_REPOSITORIES: |
-        ghcr.io/${{ github.repository }}/fkt
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -216,7 +202,7 @@ jobs:
         VERSION: ${{ needs.Tag.outputs.version }}
       with:
         images: |
-          ${{ env.DOCKER_REPOSITORIES }}
+          ${{ env.DOCKER_REPOSITORY }}
         tags: |
           type=raw,enable=true,priority=200,prefix=,suffix=,value=${{ env.VERSION }}
           type=ref,event=pr,prefix=snapshot-pr-,enable=${{ contains(github.event.pull_request.labels.*.name, 'snapshot') }}
@@ -243,21 +229,17 @@ jobs:
     - name: Summary
       id: summary
       env:
-        HAS_SSH_DEPLOY_PRIVATE_KEY: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY != '' }}
         IMAGE_ID: ${{ steps.docker-build-and-push.outputs.imageid }}
         VERSION: ${{ needs.Tag.outputs.version }}
       shell: bash
       run: |
         set -e
-        set -x
 
         NL='
         '
-        IMAGE="${DOCKER_REPOSITORIES%%"$NL"*}:${VERSION}"
-        (
-          echo "has_ssh_deploy_private_key=${HAS_SSH_DEPLOY_PRIVATE_KEY}"
-          echo "image=${IMAGE}"
-        ) >> "$GITHUB_OUTPUT"
+        IMAGE="${DOCKER_REPOSITORY%%"$NL"*}:${VERSION}"
+        
+        echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
 
         (
           echo '### Image Created'
@@ -265,92 +247,3 @@ jobs:
           echo "Image Id: [${{ env.IMAGE_ID }}](${{ env.IMAGE_ID }})"
           echo "Image Tags: $(docker image inspect --format "{{.RepoTags}}" ${{ env.IMAGE_ID }})"
         ) >> "$GITHUB_STEP_SUMMARY"
-
-  Update:
-    runs-on: ubuntu-latest
-    if: needs.Changes.outputs.image_changed == 'true' && needs.Image.outputs.has_ssh_deploy_private_key == 'true'
-    permissions:
-      contents: 'write'
-    needs:
-    - Changes
-    - Image
-    - Tag
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        fetch-tags: true
-        persist-credentials: true
-        ref: main
-        repository: ${{ github.event.pull_request.head.repo.full_name }}
-        ssh-key: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY }}
-
-    - name: Update action.yml and .pre-commit-hooks.yaml
-      id: updates
-      env:
-        IMAGE: ${{ needs.Image.outputs.image }}
-      shell: bash
-      run: |
-        set -eu
-
-        EXIT_CODE=0
-        OUTPUT="$(
-          yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1 &&
-          yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
-        )" || EXIT_CODE=$?
-
-        (
-          echo "exit=${EXIT_CODE}"
-          echo 'output<<EOF'
-          echo "$OUTPUT"
-          echo 'EOF'
-        ) >> "$GITHUB_OUTPUT"
-
-    - name: Update Failure
-      if: steps.updates.outputs.exit != 0
-      uses: actions/github-script@v6
-      env:
-        OUTPUT: ${{ steps.updates.outputs.output }}
-      with:
-        script: |
-            core.setFailed(process.env.OUTPUT)
-
-    - name: Commit Changes
-      id: git-commit
-      shell: bash
-      run: |
-        set -eu
-
-        EXIT_CODE=0
-        # shellcheck disable=SC2086
-        OUTPUT="$(
-          echo Config
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          echo
-          echo Add
-          git config --global --add safe.directory "."
-          git add action.yml .pre-commit-hooks.yaml
-          echo
-          echo Commit
-          git commit -m "[skip ci] Update External Configurations"
-          echo
-          echo Push
-          git push -f origin main
-        )" || EXIT_CODE=$?
-        (
-          echo "exit_code=$EXIT_CODE"
-          echo 'output<<EOF'
-          echo "$OUTPUT"
-          echo 'EOF'
-        ) >> "$GITHUB_OUTPUT"
-
-    - name: Commit Changes Failure
-      if: steps.git-commit.outputs.exit_code != 0
-      uses: actions/github-script@v6
-      env:
-        OUTPUT: ${{ steps.git-commit.outputs.output }}
-      with:
-        script: |
-            core.setFailed(process.env.OUTPUT)
