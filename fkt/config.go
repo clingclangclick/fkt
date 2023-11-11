@@ -34,6 +34,7 @@ func (config *Config) Validate() error {
 	if len(invalid) > 0 {
 		return fmt.Errorf("configuration validation failed: %w", errs)
 	}
+
 	return nil
 }
 
@@ -54,6 +55,7 @@ func (config *Config) Process() error {
 	if len(invalid) > 0 {
 		return fmt.Errorf("processing failed: %w", errs)
 	}
+
 	return nil
 }
 

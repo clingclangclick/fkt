@@ -110,7 +110,7 @@ jobs:
         git config user.name "github-actions[bot]"
         git config --global --add safe.directory "."
         git add action.yml .pre-commit-hooks.yaml
-        git commit -m "[skip ci] Update External Configurations" 2>&1
+        git commit --amend --no-edit 2>&1
 
         REV="$(git rev-parse HEAD)"
         git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "${REV}"
