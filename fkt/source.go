@@ -21,11 +21,15 @@ type Source struct {
 func (s *Source) Defaults(name string) {
 	s.Name = name
 
+	log.Debug("Source name: ", s.Name)
+
 	if s.Managed == nil {
 		log.Debug("Managed unset, setting to `true`")
 		s.Managed = new(bool)
 		*s.Managed = true
 	}
+
+	log.Debug("Source managed: ", *s.Managed)
 
 	if s.Namespace == nil {
 		log.Debug("Namespace unset, setting to `default`")
@@ -33,17 +37,21 @@ func (s *Source) Defaults(name string) {
 		*s.Namespace = "default"
 	}
 
+	log.Debug("Source namespace: ", *s.Namespace)
+
 	if s.Origin == nil {
 		log.Debug("Origin unset, setting to source name")
 		s.Origin = new(string)
 		*s.Origin = name
 	}
 
-	log.Debug("Source name: ", s.Name)
 	log.Debug("Source origin: ", *s.Origin)
+
 	if s.Values == nil {
 		s.Values = make(Values)
 	}
+
+	log.Trace("Source values: ", s.Values)
 }
 
 func (s *Source) DestinationPath(settings *Settings, clusterPath string) string {
