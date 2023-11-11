@@ -59,7 +59,7 @@ func (c *Cluster) Validate(settings *Settings) error {
 
 func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 	if c.Values == nil {
-		log.Debug("Cluster ", c.Name, " has no values")
+		log.Trace("Cluster ", c.Name, " has no values")
 		c.Values = Values{}
 	}
 
@@ -95,13 +95,13 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 
 		err := source.Process(settings, values, c.clusterPath())
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot process source: %s; %w", source.Name, err)
 		}
 	}
 
 	sourceEntries, err := os.ReadDir(c.overlayPath(settings))
 	if err != nil {
-		return fmt.Errorf("%w, cannot get listing of sources in cluster path: %s", err, c.overlayPath(settings))
+		return fmt.Errorf("cannot get listing of sources in cluster path: %s; %w", c.overlayPath(settings), err)
 	}
 
 	log.Trace("Checking entries: ", sourceEntries)
@@ -129,7 +129,7 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 		for _, removableSourcePath := range removableSourcePaths {
 			err := os.RemoveAll(removableSourcePath)
 			if err != nil {
-				return fmt.Errorf("could not remove unnecessary source destination path: %s", removableSourcePath)
+				return fmt.Errorf("could not remove unnecessary source destination path: %s; %w", removableSourcePath, err)
 			}
 		}
 

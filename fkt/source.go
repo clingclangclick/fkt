@@ -78,7 +78,7 @@ func (s *Source) Validate(settings *Settings, name string) error {
 		path := filepath.Join(settings.sourcesPath(), *s.Origin)
 		_, err := utils.IsDir(path)
 		if err != nil {
-			return fmt.Errorf("source validation failed for: %s", name)
+			return fmt.Errorf("source validation failed for: %s; %w", name, err)
 		}
 	}
 
@@ -110,11 +110,11 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 
 	de, err := utils.IsDir(sourcePath)
 	if err != nil {
-		return fmt.Errorf("is not a directory: %s", sourcePath)
+		return fmt.Errorf("is not a directory: %s; %w", sourcePath, err)
 	}
 
 	if !utils.ContainsKustomization(sourcePath) {
-		return fmt.Errorf("kustomization file does not exist in: %s", sourcePath)
+		return fmt.Errorf("kustomization file does not exist in: %s; %w", sourcePath, err)
 	}
 
 	if !de {
@@ -124,7 +124,7 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 	if !de {
 		err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
 		if err != nil {
-			return fmt.Errorf("failed to create directory %s (%s)", destinationPath, err)
+			return fmt.Errorf("failed to create directory %s; %w", destinationPath, err)
 		}
 	}
 
