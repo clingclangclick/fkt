@@ -121,7 +121,7 @@ jobs:
         git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "${REV}"
         git push --follow-tags --force origin "$TAG_VERSION"
   
-        gh_opts=(--generate-notes --latest --target "${REV}" --verify-tag)
+        gh_opts=(--generate-notes --latest --target "${SHA}" --verify-tag)
         if [ -z "${CURRENT_TAG+x}" ]; then
           gh_opts+=(--notes-start-tag "${CURRENT_TAG:-v0.0.0}")
         fi
