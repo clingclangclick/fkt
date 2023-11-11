@@ -74,5 +74,6 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	}
 
 	log.Info("Loaded configuration: ", utils.RelWD(configurationFile))
+
 	return &config, err
 }

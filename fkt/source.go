@@ -65,6 +65,7 @@ func (s *Source) Validate(settings *Settings, name string) error {
 			return fmt.Errorf("source validation failed for: %s", name)
 		}
 	}
+
 	return nil
 }
 
