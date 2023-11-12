@@ -48,10 +48,12 @@ func (settings *Settings) Defaults(
 		log.Trace("Settings default directory overlay: ", settingsDefaults["directory_overlays"])
 		settings.Directories.Overlays = settingsDefaults["directory_overlays"]
 	}
+
 	if settings.Directories.Sources == "" {
 		log.Trace("Settings default directory source: ", settingsDefaults["directory_sources"])
 		settings.Directories.Sources = settingsDefaults["directory_sources"]
 	}
+
 	if settings.Directories.BaseDirectory == "" {
 		if baseDirectory == "" {
 			cwd, err := os.Getwd()
@@ -70,6 +72,7 @@ func (settings *Settings) Defaults(
 		log.Trace("Settings default delimiter left: ", settingsDefaults["delimiter_left"])
 		settings.Delimiters.Left = settingsDefaults["delimiter_left"]
 	}
+
 	if settings.Delimiters.Right == "" {
 		log.Trace("Settings default delimiter right: ", settingsDefaults["delimiter_right"])
 		settings.Delimiters.Right = settingsDefaults["delimiter_right"]
