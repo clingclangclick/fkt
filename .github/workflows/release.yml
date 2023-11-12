@@ -118,6 +118,8 @@ jobs:
           POSITION=1
         fi
 
+        git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
+
         # Version sort is _not_ semver
         CURRENT_TAG="$(git tag -l "v*" 2>/dev/null | sort -Vr | head -n1)"
         CURRENT_VERSION="${CURRENT_TAG##v}"

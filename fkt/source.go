@@ -20,7 +20,6 @@ type Source struct {
 
 func (s *Source) Defaults(name string) {
 	s.Name = name
-
 	log.Debug("Source name: ", s.Name)
 
 	if s.Managed == nil {
@@ -28,7 +27,6 @@ func (s *Source) Defaults(name string) {
 		s.Managed = new(bool)
 		*s.Managed = true
 	}
-
 	log.Debug("Source managed: ", *s.Managed)
 
 	if s.Namespace == nil {
@@ -36,7 +34,6 @@ func (s *Source) Defaults(name string) {
 		s.Namespace = new(string)
 		*s.Namespace = "default"
 	}
-
 	log.Debug("Source namespace: ", *s.Namespace)
 
 	if s.Origin == nil {
@@ -44,13 +41,11 @@ func (s *Source) Defaults(name string) {
 		s.Origin = new(string)
 		*s.Origin = name
 	}
-
 	log.Debug("Source origin: ", *s.Origin)
 
 	if s.Values == nil {
 		s.Values = make(Values)
 	}
-
 	log.Trace("Source values: ", s.Values)
 }
 
@@ -92,10 +87,11 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 		subPathSlice = append(subPathSlice, subPaths...)
 		subPath = filepath.Join(subPathSlice...)
 	}
-	sourcePath := filepath.Join(s.SourcePath(settings), subPath)
-	destinationPath := filepath.Join(s.DestinationPath(settings, clusterPath), subPath)
 
+	sourcePath := filepath.Join(s.SourcePath(settings), subPath)
 	log.Debug("Source path: ", utils.RelWD(sourcePath))
+
+	destinationPath := filepath.Join(s.DestinationPath(settings, clusterPath), subPath)
 	log.Debug("Destination path: ", utils.RelWD(destinationPath))
 
 	err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
@@ -132,6 +128,8 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 	if err != nil {
 		return err
 	}
+	defer sdh.Close()
+
 	entries, err := sdh.Readdirnames(-1)
 	if err != nil {
 		return err
