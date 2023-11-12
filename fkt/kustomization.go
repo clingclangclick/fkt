@@ -25,8 +25,8 @@ type kustomization struct {
 	Resources         []string          `yaml:"resources"`
 }
 
-func (k *Kustomization) generateKustomization(settings *Settings, commonAnnotations map[string]string, dryRun bool) error {
-	resources, err := k.kustomizationResources(settings)
+func (k *Kustomization) generate(settings *Settings, commonAnnotations map[string]string, dryRun bool) error {
+	resources, err := k.resources(settings)
 	if err != nil {
 		return fmt.Errorf("cannot generate kustomization resources: %w", err)
 	}
@@ -69,7 +69,7 @@ func (k *Kustomization) generateKustomization(settings *Settings, commonAnnotati
 	return nil
 }
 
-func (k *Kustomization) kustomizationResources(settings *Settings) ([]string, error) {
+func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 	resources := []string{}
 
 	for sourceName, source := range k.Cluster.Sources {
