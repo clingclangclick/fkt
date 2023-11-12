@@ -126,6 +126,13 @@ jobs:
         TAG_VERSION="v$THIS_VERSION"
 
         if [ "${HAS_SSH_DEPLOY_PRIVATE_KEY}" = "true" ]; then
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_DEPLOY_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
           IMAGE="${DOCKER_REPOSITORY}:${THIS_VERSION}"
           export IMAGE
 
