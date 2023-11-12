@@ -137,7 +137,7 @@ jobs:
           git config --global --add safe.directory "."
           git add action.yml .pre-commit-hooks.yaml
           git commit --amend --no-edit 2>&1
-          git push --force origin HEAD:main 2>&1
+          git push --force origin main 2>&1
         fi
 
         SHA="$(git rev-parse HEAD)"

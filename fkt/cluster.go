@@ -117,11 +117,11 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 		}
 
 		log.Debug("Generating kustomization for cluster: ", c.Name)
-		kustomization := Kustomization{
+		kustomization := &Kustomization{
 			Cluster: c,
 		}
 
-		err := kustomization.generateKustomization(settings, c.Config(), settings.DryRun)
+		err := kustomization.generate(settings, c.Config(), settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
