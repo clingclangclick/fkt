@@ -56,13 +56,33 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
     steps:
+    - name: SSH Deploy Key
+      id: ssh-deploy-key
+      env:
+        HAS_SSH_DEPLOY_PRIVATE_KEY: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY != '' }}
+      shell: bash
+      run: echo "has_ssh_deploy_private_key=${{ env.HAS_SSH_DEPLOY_PRIVATE_KEY }}" >> "$GITHUB_OUTPUT"
+
     - name: Checkout
+      if: steps.ssh-deploy-key.outputs.has_ssh_deploy_private_key != 'true'
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
         fetch-tags: true
-        ref: ${{ github.sha }}
-  
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ref: main
+
+    - name: Checkout
+      if: steps.ssh-deploy-key.outputs.has_ssh_deploy_private_key == 'true'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+        persist-credentials: true
+        ref: main
+        repository: ${{ github.event.pull_request.head.repo.full_name }}
+        ssh-key: ${{ secrets.SSH_DEPLOY_PRIVATE_KEY }}
+
     - name: Tag
       id: tag
       env:
@@ -98,8 +118,6 @@ jobs:
           POSITION=1
         fi
 
-        # git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
-
         # Version sort is _not_ semver
         CURRENT_TAG="$(git tag -l "v*" 2>/dev/null | sort -Vr | head -n1)"
         CURRENT_VERSION="${CURRENT_TAG##v}"
@@ -118,10 +136,10 @@ jobs:
         git commit --amend --no-edit 2>&1
 
         SHA="$(git rev-parse HEAD)"
-        git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "${SHA}"
+        git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "$SHA"
         git push --follow-tags --force origin "$TAG_VERSION"
   
-        gh_opts=(--generate-notes --latest --target "${SHA}" --verify-tag)
+        gh_opts=(--generate-notes --latest --target "$SHA" --verify-tag)
         if [ -z "${CURRENT_TAG+x}" ]; then
           gh_opts+=(--notes-start-tag "${CURRENT_TAG:-v0.0.0}")
         fi

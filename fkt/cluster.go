@@ -180,7 +180,6 @@ func (c *Cluster) kustomizationResources(settings *Settings, destinationPath str
 			continue
 		}
 		de, err := utils.IsDir(filepath.Join(destinationPath, entry))
-
 		if err != nil {
 			return []string{}, err
 		}
