@@ -68,7 +68,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        fetch-tags: true
         repository: ${{ github.event.pull_request.head.repo.full_name }}
         ref: main
 
@@ -77,7 +76,6 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        fetch-tags: true
         persist-credentials: true
         ref: main
         repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -88,6 +86,7 @@ jobs:
       env:
         BODY: ${{ github.event.pull_request.body }}
         GH_TOKEN: ${{ github.token }}
+        HAS_SSH_DEPLOY_PRIVATE_KEY: ${{ steps.ssh-deploy-key.outputs.has_ssh_deploy_private_key }}
         TITLE: ${{ github.event.pull_request.title }}
       shell: bash
       run: |
@@ -126,16 +125,20 @@ jobs:
         THIS_VERSION="$(increment_version "${CURRENT_VERSION:-0.0.0}" "$POSITION")"
         TAG_VERSION="v$THIS_VERSION"
 
-        IMAGE="${DOCKER_REPOSITORY}:${THIS_VERSION}"
-        export IMAGE
-        yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1
-        yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
+        if [ "${HAS_SSH_DEPLOY_PRIVATE_KEY}" = "true" ]; then
+          IMAGE="${DOCKER_REPOSITORY}:${THIS_VERSION}"
+          export IMAGE
 
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git config user.name "github-actions[bot]"
-        git config --global --add safe.directory "."
-        git add action.yml .pre-commit-hooks.yaml
-        git commit --amend --no-edit 2>&1
+          yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1
+          yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config --global --add safe.directory "."
+          git add action.yml .pre-commit-hooks.yaml
+          git commit --amend --no-edit 2>&1
+          git push --force origin HEAD:main 2>&1
+        fi
 
         SHA="$(git rev-parse HEAD)"
         git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "$SHA"

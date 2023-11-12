@@ -5,9 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
-
-	"gopkg.in/yaml.v3"
 
 	log "github.com/sirupsen/logrus"
 
@@ -41,20 +38,6 @@ func (c *Cluster) Config() map[string]string {
 	config["name"] = c.Name
 
 	return config
-}
-
-func (c *Cluster) Validate(settings *Settings) error {
-	log.Info("Validating cluster: ", c.Name)
-
-	for name, source := range c.Sources {
-		log.Debug("Validating source: ", name)
-		err := source.Validate(settings, name)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (c *Cluster) Process(settings *Settings, globalValues Values) error {
@@ -133,7 +116,12 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 			}
 		}
 
-		err := c.generateKustomization(settings, c.overlayPath(settings), c.Config(), settings.DryRun)
+		log.Debug("Generating kustomization for cluster: ", c.Name)
+		kustomization := Kustomization{
+			Cluster: c,
+		}
+
+		err := kustomization.generateKustomization(settings, c.Config(), settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -142,95 +130,14 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 	return nil
 }
 
-type kustomization struct {
-	APIVersion        string            `yaml:"apiVersion"`
-	Kind              string            `yaml:"kind"`
-	CommonAnnotations map[string]string `yaml:"commonAnnotations"`
-	Resources         []string          `yaml:"resources"`
-}
+func (c *Cluster) Validate(settings *Settings) error {
+	log.Info("Validating cluster: ", c.Name)
 
-func (c *Cluster) kustomizationResources(settings *Settings, destinationPath string) ([]string, error) {
-	resources := []string{}
-
-	for sourceName, source := range c.Sources {
-		if source == nil {
-			source = &Source{}
-		}
-		source.Defaults(sourceName)
-		if !*source.Managed {
-			continue
-		}
-
-		resources = append(resources, sourceName)
-	}
-
-	d, err := os.Open(destinationPath)
-	if err != nil {
-		return []string{}, err
-	}
-	defer d.Close()
-
-	entries, err := d.Readdirnames(-1)
-	if err != nil {
-		return []string{}, err
-	}
-	for _, entry := range entries {
-		found := slices.Contains(resources, entry)
-		if found {
-			continue
-		}
-		de, err := utils.IsDir(filepath.Join(destinationPath, entry))
+	for name, source := range c.Sources {
+		log.Debug("Validating source: ", name)
+		err := source.Validate(settings, name)
 		if err != nil {
-			return []string{}, err
-		}
-		if de {
-			if utils.ContainsKustomization(filepath.Join(destinationPath, entry)) {
-				resources = append(resources, entry)
-			}
-		}
-	}
-
-	sort.Strings(resources)
-
-	return resources, nil
-}
-
-func (c *Cluster) generateKustomization(settings *Settings, destinationPath string, commonAnnotations map[string]string, dryRun bool) error {
-	resources, err := c.kustomizationResources(settings, destinationPath)
-	if err != nil {
-		return fmt.Errorf("cannot generate kustomization resources: %w", err)
-	}
-
-	if len(resources) == 0 {
-		log.Warn("No kustomization resources for cluster: ", c.clusterPath())
-		return nil
-	}
-
-	log.Info("Generating kustomization for: ", resources)
-	isDir, err := utils.IsDir(destinationPath)
-	if err != nil {
-		return fmt.Errorf("error determinig directory: %w", err)
-	}
-	if !isDir {
-		return fmt.Errorf("path is not directory: %s", destinationPath)
-	}
-
-	kustomizationYAML, err := yaml.Marshal(&kustomization{
-		Kind:              "Kustomization",
-		APIVersion:        "kustomize.config.k8s.io/v1beta1",
-		CommonAnnotations: commonAnnotations,
-		Resources:         resources,
-	})
-	if err != nil {
-		return fmt.Errorf("cannot marshal kustomization: %w", err)
-	}
-	kustomizationYAML = []byte(fmt.Sprintf("---\n%s", kustomizationYAML))
-
-	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
-	if !dryRun {
-		err = utils.WriteFile(kustomizationFile, kustomizationYAML, uint32(0666), dryRun)
-		if err != nil {
-			return fmt.Errorf("cannot write kustomization: %w", err)
+			return err
 		}
 	}
 
