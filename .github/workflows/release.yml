@@ -150,7 +150,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config --global --add safe.directory "."
           git add action.yml .pre-commit-hooks.yaml
-          git commit --ammend --no-edit
+          git commit --amend --no-edit
           git push --force -u origin main
         fi
 

@@ -18,6 +18,16 @@ type Source struct {
 	Name      string
 }
 
+func (s *Source) Config() map[string]string {
+	config := make(map[string]string)
+
+	config["name"] = s.Name
+	config["origin"] = *s.Origin
+	config["namespace"] = *s.Namespace
+
+	return config
+}
+
 func (s *Source) Defaults(name string) {
 	s.Name = name
 	log.Debug("Source name: ", s.Name)
@@ -55,33 +65,6 @@ func (s *Source) DestinationPath(settings *Settings, clusterPath string) string 
 
 func (s *Source) SourcePath(settings *Settings) string {
 	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
-}
-
-func (s *Source) Config() map[string]string {
-	config := make(map[string]string)
-
-	config["name"] = s.Name
-	config["origin"] = *s.Origin
-	config["namespace"] = *s.Namespace
-
-	return config
-}
-
-func (s *Source) Validate(settings *Settings, name string) error {
-	s.Defaults(name)
-	if *s.Managed {
-		path := filepath.Join(settings.sourcesPath(), *s.Origin)
-		_, err := utils.IsDir(path)
-		if err != nil {
-			return fmt.Errorf("source validation failed for: %s; %w", name, err)
-		}
-
-		if !utils.ContainsKustomization(path) {
-			return fmt.Errorf("kustomization file does not exist in: %s; %w", utils.RelWD(path), err)
-		}
-	}
-
-	return nil
 }
 
 func (s *Source) Process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
@@ -157,6 +140,23 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Source) Validate(settings *Settings, name string) error {
+	s.Defaults(name)
+	if *s.Managed {
+		path := filepath.Join(settings.sourcesPath(), *s.Origin)
+		_, err := utils.IsDir(path)
+		if err != nil {
+			return fmt.Errorf("source validation failed for: %s; %w", name, err)
+		}
+
+		if !utils.ContainsKustomization(path) {
+			return fmt.Errorf("kustomization file does not exist in: %s; %w", utils.RelWD(path), err)
 		}
 	}
 
