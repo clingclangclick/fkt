@@ -75,6 +75,7 @@ func (s *Source) Validate(settings *Settings, name string) error {
 		if err != nil {
 			return fmt.Errorf("source validation failed for: %s; %w", name, err)
 		}
+
 		if !utils.ContainsKustomization(path) {
 			return fmt.Errorf("kustomization file does not exist in: %s; %w", utils.RelWD(path), err)
 		}

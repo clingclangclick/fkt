@@ -139,7 +139,6 @@ jobs:
           chmod 644 ~/.ssh/known_hosts
 
           git fetch origin main
-          git revert "$(git rev-parse HEAD)" -m 1 --no-commit --no-edit
 
           IMAGE="$DOCKER_REPOSITORY:$THIS_VERSION"
           export IMAGE
@@ -151,8 +150,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config --global --add safe.directory "."
           git add action.yml .pre-commit-hooks.yaml
-          git commit -m "Update GitHub action and Pre-commit configurations to $THIS_VERSION"
-          git push -u origin main
+          git commit --ammend --no-edit
+          git push --force -u origin main
         fi
 
         SHA="$(git rev-parse HEAD)"
