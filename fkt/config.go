@@ -25,9 +25,10 @@ func (config *Config) Validate() error {
 	for _, cluster := range config.Clusters {
 		err := cluster.Validate(config.Settings)
 		if err != nil {
-			log.Error("cannot validate cluster: ", cluster.clusterPath())
 			invalid = append(invalid, cluster.clusterPath())
 			errs = fmt.Errorf("%s\n%w\n%w", cluster.clusterPath(), errs, err)
+
+			log.Error("cannot validate cluster: ", cluster.clusterPath())
 		}
 	}
 
@@ -46,9 +47,10 @@ func (config *Config) Process() error {
 	for _, cluster := range config.Clusters {
 		err := cluster.Process(config.Settings, config.Values)
 		if err != nil {
-			log.Error("cannot process cluster: ", cluster.clusterPath())
 			invalid = append(invalid, cluster.clusterPath())
 			errs = fmt.Errorf("%s\n%w\n%w", cluster.clusterPath(), errs, err)
+
+			log.Error("cannot process cluster: ", cluster.clusterPath())
 		}
 	}
 
