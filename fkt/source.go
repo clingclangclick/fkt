@@ -18,7 +18,7 @@ type Source struct {
 	Name      string
 }
 
-func (s *Source) Config() map[string]string {
+func (s *Source) config() map[string]string {
 	config := make(map[string]string)
 
 	config["name"] = s.Name
@@ -28,7 +28,7 @@ func (s *Source) Config() map[string]string {
 	return config
 }
 
-func (s *Source) Defaults(name string) {
+func (s *Source) defaults(name string) {
 	s.Name = name
 	log.Debug("Source name: ", s.Name)
 
@@ -59,15 +59,15 @@ func (s *Source) Defaults(name string) {
 	log.Trace("Source values: ", s.Values)
 }
 
-func (s *Source) DestinationPath(settings *Settings, clusterPath string) string {
+func (s *Source) pathDestination(settings *Settings, clusterPath string) string {
 	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
 }
 
-func (s *Source) SourcePath(settings *Settings) string {
+func (s *Source) pathSource(settings *Settings) string {
 	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
 }
 
-func (s *Source) Process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
+func (s *Source) process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
 	subPath := ""
 
 	if len(subPaths) > 0 {
@@ -76,10 +76,10 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 		subPath = filepath.Join(subPathSlice...)
 	}
 
-	sourcePath := filepath.Join(s.SourcePath(settings), subPath)
+	sourcePath := filepath.Join(s.pathSource(settings), subPath)
 	log.Debug("Source path: ", utils.RelWD(sourcePath))
 
-	destinationPath := filepath.Join(s.DestinationPath(settings, clusterPath), subPath)
+	destinationPath := filepath.Join(s.pathDestination(settings, clusterPath), subPath)
 	log.Debug("Destination path: ", utils.RelWD(destinationPath))
 
 	err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
@@ -131,12 +131,12 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 		}
 		if !dt {
 			destinationEntryPath := filepath.Join(destinationPath, entry)
-			err := values.Template(sourceEntryPath, destinationEntryPath, settings)
+			err := values.template(sourceEntryPath, destinationEntryPath, settings)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = s.Process(settings, values, clusterPath, sourceEntryPath)
+			err = s.process(settings, values, clusterPath, sourceEntryPath)
 			if err != nil {
 				return err
 			}
@@ -146,10 +146,10 @@ func (s *Source) Process(settings *Settings, values Values, clusterPath string, 
 	return nil
 }
 
-func (s *Source) Validate(settings *Settings, name string) error {
-	s.Defaults(name)
+func (s *Source) validate(settings *Settings, name string) error {
+	s.defaults(name)
 	if *s.Managed {
-		path := filepath.Join(settings.sourcesPath(), *s.Origin)
+		path := filepath.Join(settings.pathSources(), *s.Origin)
 		_, err := utils.IsDir(path)
 		if err != nil {
 			return fmt.Errorf("source validation failed for: %s; %w", name, err)

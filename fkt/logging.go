@@ -67,7 +67,7 @@ func (l *LogFormat) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (logConfig *LogConfig) Settings(logConfigOverride LogConfig) error {
+func (logConfig *LogConfig) settings(logConfigOverride LogConfig) error {
 	if logConfigOverride.Level != "default" {
 		logConfig.Level = logConfigOverride.Level
 	}
