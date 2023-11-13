@@ -85,6 +85,7 @@ func (s *Source) Validate(settings *Settings, name string) error {
 
 func (s *Source) Process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
 	subPath := ""
+
 	if len(subPaths) > 0 {
 		subPathSlice := []string{}
 		subPathSlice = append(subPathSlice, subPaths...)
