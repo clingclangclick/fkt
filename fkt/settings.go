@@ -44,15 +44,20 @@ func (settings *Settings) Defaults(
 		return fmt.Errorf("error setting log configuration: %w", err)
 	}
 
+	log.Info("Settings")
+	log.Info("Dry run: ", settings.DryRun)
+
 	if settings.Directories.Overlays == "" {
 		log.Trace("Settings default directory overlay: ", settingsDefaults["directory_overlays"])
 		settings.Directories.Overlays = settingsDefaults["directory_overlays"]
 	}
+	log.Info("Overlays Directory: ", settings.Directories.Overlays)
 
 	if settings.Directories.Sources == "" {
 		log.Trace("Settings default directory source: ", settingsDefaults["directory_sources"])
 		settings.Directories.Sources = settingsDefaults["directory_sources"]
 	}
+	log.Info("Sources Directory: ", settings.Directories.Sources)
 
 	if settings.Directories.BaseDirectory == "" {
 		if baseDirectory == "" {
@@ -67,23 +72,18 @@ func (settings *Settings) Defaults(
 			settings.Directories.BaseDirectory = baseDirectory
 		}
 	}
+	log.Info("Base Directory: ", settings.Directories.BaseDirectory)
 
 	if settings.Delimiters.Left == "" {
 		log.Trace("Settings default delimiter left: ", settingsDefaults["delimiter_left"])
 		settings.Delimiters.Left = settingsDefaults["delimiter_left"]
 	}
+	log.Info("Left Delimiter: ", settings.Delimiters.Left)
 
 	if settings.Delimiters.Right == "" {
 		log.Trace("Settings default delimiter right: ", settingsDefaults["delimiter_right"])
 		settings.Delimiters.Right = settingsDefaults["delimiter_right"]
 	}
-
-	log.Info("Settings")
-	log.Info("Dry run: ", settings.DryRun)
-	log.Info("Base Directory: ", settings.Directories.BaseDirectory)
-	log.Info("Sources Directory: ", settings.Directories.Sources)
-	log.Info("Overlays Directory: ", settings.Directories.Overlays)
-	log.Info("Left Delimiter: ", settings.Delimiters.Left)
 	log.Info("Right Delimiter: ", settings.Delimiters.Right)
 
 	return nil
