@@ -69,8 +69,8 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 		}
 
 		log.Info("Processing Source: ", *source.Origin, ", into ", c.Name, "/", sourceName)
-		values := make(Values)
 
+		values := make(Values)
 		values["Cluster"] = c.Config()
 		values["Source"] = source.Config()
 		values["Values"] = clusterGlobalValues.ProcessValues(source.Values)
@@ -92,6 +92,7 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 	for _, sourceEntry := range sourceEntries {
 		sourceEntryName := sourceEntry.Name()
 		sourcePath := filepath.Join(c.overlayPath(settings), sourceEntryName)
+
 		exists, err := utils.IsDir(sourcePath)
 		if settings.DryRun {
 			if exists {
