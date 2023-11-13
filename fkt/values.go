@@ -12,7 +12,7 @@ import (
 
 type Values map[string]interface{}
 
-func (v *Values) Dump() string {
+func (v *Values) dump() string {
 	dump, err := json.Marshal(v)
 	if err != nil {
 		log.Panic(err)
@@ -21,7 +21,7 @@ func (v *Values) Dump() string {
 	return string(dump[:])
 }
 
-func (v *Values) ProcessValues(values ...Values) Values {
+func (v *Values) processValues(values ...Values) Values {
 	for _, sv := range values {
 		for ik, iv := range sv {
 			(*v)[ik] = iv
@@ -31,7 +31,7 @@ func (v *Values) ProcessValues(values ...Values) Values {
 	return *v
 }
 
-func (v *Values) Template(sourcePath, destinationPath string, settings *Settings) error {
+func (v *Values) template(sourcePath, destinationPath string, settings *Settings) error {
 	tfd, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("cannot read template file: %s; %w", sourcePath, err)

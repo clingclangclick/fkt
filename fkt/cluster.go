@@ -21,15 +21,7 @@ type Cluster struct {
 	Sources     map[string]*Source `yaml:"sources"`
 }
 
-func (c *Cluster) clusterPath() string {
-	return filepath.Join(c.Platform, c.Environment, c.Region, c.Name)
-}
-
-func (c *Cluster) overlayPath(settings *Settings) string {
-	return filepath.Join(settings.overlaysPath(), c.clusterPath())
-}
-
-func (c *Cluster) Config() map[string]string {
+func (c *Cluster) config() map[string]string {
 	config := make(map[string]string)
 
 	config["platform"] = c.Platform
@@ -40,16 +32,24 @@ func (c *Cluster) Config() map[string]string {
 	return config
 }
 
-func (c *Cluster) Process(settings *Settings, globalValues Values) error {
+func (c *Cluster) pathCluster() string {
+	return filepath.Join(c.Platform, c.Environment, c.Region, c.Name)
+}
+
+func (c *Cluster) pathOverlays(settings *Settings) string {
+	return filepath.Join(settings.pathOverlays(), c.pathCluster())
+}
+
+func (c *Cluster) process(settings *Settings, globalValues Values) error {
 	if c.Values == nil {
 		log.Trace("Cluster ", c.Name, " has no values")
 		c.Values = Values{}
 	}
 
-	clusterGlobalValues := globalValues.ProcessValues(c.Values)
-	log.Debug("clusterGlobalValues: ", clusterGlobalValues.Dump())
+	clusterGlobalValues := globalValues.processValues(c.Values)
+	log.Debug("clusterGlobalValues: ", clusterGlobalValues.dump())
 
-	err := utils.MkDir(c.overlayPath(settings), settings.DryRun)
+	err := utils.MkDir(c.pathOverlays(settings), settings.DryRun)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 		if source == nil {
 			source = &Source{}
 		}
-		source.Defaults(sourceName)
+		source.defaults(sourceName)
 
 		processedSources = append(processedSources, sourceName)
 
@@ -71,27 +71,27 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 		log.Info("Processing Source: ", *source.Origin, ", into ", c.Name, "/", sourceName)
 
 		values := make(Values)
-		values["Cluster"] = c.Config()
-		values["Source"] = source.Config()
-		values["Values"] = clusterGlobalValues.ProcessValues(source.Values)
-		log.Trace("Values: ", values.Dump())
+		values["Cluster"] = c.config()
+		values["Source"] = source.config()
+		values["Values"] = clusterGlobalValues.processValues(source.Values)
+		log.Trace("Values: ", values.dump())
 
-		err := source.Process(settings, values, c.clusterPath())
+		err := source.process(settings, values, c.pathCluster())
 		if err != nil {
 			return fmt.Errorf("cannot process source: %s; %w", source.Name, err)
 		}
 	}
 
-	sourceEntries, err := os.ReadDir(c.overlayPath(settings))
+	sourceEntries, err := os.ReadDir(c.pathOverlays(settings))
 	if err != nil {
-		return fmt.Errorf("cannot get listing of sources in cluster path: %s; %w", c.overlayPath(settings), err)
+		return fmt.Errorf("cannot get listing of sources in cluster path: %s; %w", c.pathOverlays(settings), err)
 	}
 
 	log.Trace("Checking entries: ", sourceEntries)
 	removableSourcePaths := []string{}
 	for _, sourceEntry := range sourceEntries {
 		sourceEntryName := sourceEntry.Name()
-		sourcePath := filepath.Join(c.overlayPath(settings), sourceEntryName)
+		sourcePath := filepath.Join(c.pathOverlays(settings), sourceEntryName)
 
 		exists, err := utils.IsDir(sourcePath)
 		if settings.DryRun {
@@ -122,7 +122,7 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 			Cluster: c,
 		}
 
-		err := kustomization.generate(settings, c.Config(), settings.DryRun)
+		err := kustomization.generate(settings, c.config(), settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -131,12 +131,12 @@ func (c *Cluster) Process(settings *Settings, globalValues Values) error {
 	return nil
 }
 
-func (c *Cluster) Validate(settings *Settings) error {
+func (c *Cluster) validate(settings *Settings) error {
 	log.Info("Validating cluster: ", c.Name)
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)
-		err := source.Validate(settings, name)
+		err := source.validate(settings, name)
 		if err != nil {
 			return err
 		}

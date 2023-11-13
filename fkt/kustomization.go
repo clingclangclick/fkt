@@ -32,11 +32,11 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 	}
 
 	if len(resources) == 0 {
-		log.Warn("No kustomization resources in: ", k.Cluster.clusterPath())
+		log.Warn("No kustomization resources in: ", k.Cluster.pathCluster())
 		return nil
 	}
 
-	destinationPath := k.Cluster.overlayPath(settings)
+	destinationPath := k.Cluster.pathOverlays(settings)
 
 	log.Info("Generating kustomization for: ", resources)
 	isDir, err := utils.IsDir(destinationPath)
@@ -76,7 +76,7 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if source == nil {
 			source = &Source{}
 		}
-		source.Defaults(sourceName)
+		source.defaults(sourceName)
 		if !*source.Managed {
 			continue
 		}
@@ -84,7 +84,7 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		resources = append(resources, sourceName)
 	}
 
-	destinationPath := k.Cluster.overlayPath(settings)
+	destinationPath := k.Cluster.pathOverlays(settings)
 
 	d, err := os.Open(destinationPath)
 	if err != nil {

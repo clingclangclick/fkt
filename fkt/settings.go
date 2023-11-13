@@ -39,7 +39,7 @@ func (settings *Settings) Defaults(
 	if settings.LogConfig == nil {
 		settings.LogConfig = &LogConfig{}
 	}
-	err := settings.LogConfig.Settings(logConfig)
+	err := settings.LogConfig.settings(logConfig)
 	if err != nil {
 		return fmt.Errorf("error setting log configuration: %w", err)
 	}
@@ -104,10 +104,10 @@ func (settings *Settings) Validate() error {
 	if settings.Directories.Overlays == "" {
 		return fmt.Errorf("overlays directory not set")
 	} else {
-		exist, err := utils.IsDir(settings.overlaysPath())
+		exist, err := utils.IsDir(settings.pathOverlays())
 		if !exist || err != nil {
-			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.overlaysPath()))
-			err = os.MkdirAll(settings.overlaysPath(), 0777)
+			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.pathOverlays()))
+			err = os.MkdirAll(settings.pathOverlays(), 0777)
 			if err != nil {
 				return fmt.Errorf("overlays directory cannot be created: %w", err)
 			}
@@ -117,7 +117,7 @@ func (settings *Settings) Validate() error {
 	if settings.Directories.Sources == "" {
 		return fmt.Errorf("sources directory not set")
 	} else {
-		exist, err := utils.IsDir(settings.sourcesPath())
+		exist, err := utils.IsDir(settings.pathSources())
 		if !exist || err != nil {
 			return fmt.Errorf("sources directory does not exist: %w", err)
 		}
@@ -126,10 +126,10 @@ func (settings *Settings) Validate() error {
 	return nil
 }
 
-func (settings *Settings) overlaysPath() string {
+func (settings *Settings) pathOverlays() string {
 	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays)
 }
 
-func (settings *Settings) sourcesPath() string {
+func (settings *Settings) pathSources() string {
 	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources)
 }
