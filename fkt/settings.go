@@ -31,14 +31,6 @@ type Settings struct {
 	LogConfig *LogConfig `yaml:"log"`
 }
 
-func (settings *Settings) pathOverlays() string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays)
-}
-
-func (settings *Settings) pathSources() string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources)
-}
-
 func (settings *Settings) Defaults(
 	baseDirectory string,
 	dryRun bool,
@@ -132,4 +124,12 @@ func (settings *Settings) Validate() error {
 	}
 
 	return nil
+}
+
+func (settings *Settings) pathOverlays() string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays)
+}
+
+func (settings *Settings) pathSources() string {
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources)
 }
