@@ -40,14 +40,11 @@ func (c *Cluster) pathOverlays(settings *Settings) string {
 	return filepath.Join(settings.pathOverlays(), c.pathCluster())
 }
 
-func (c *Cluster) process(settings *Settings, globalValues Values) error {
+func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 	if c.Values == nil {
 		log.Trace("Cluster ", c.Name, " has no values")
 		c.Values = Values{}
 	}
-
-	clusterGlobalValues := globalValues.processValues(c.Values)
-	log.Debug("clusterGlobalValues: ", clusterGlobalValues.dump())
 
 	err := utils.MkDir(c.pathOverlays(settings), settings.DryRun)
 	if err != nil {
@@ -73,10 +70,9 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 		values := make(Values)
 		values["Cluster"] = c.config()
 		values["Source"] = source.config()
-		values["Values"] = clusterGlobalValues.processValues(source.Values)
-		log.Trace("Values: ", values.dump())
+		values["Values"] = ProcessValues(&values, &c.Values, &source.Values)
 
-		err := source.process(settings, values, c.pathCluster())
+		err = source.process(settings, values, c.pathCluster())
 		if err != nil {
 			return fmt.Errorf("cannot process source: %s; %w", source.Name, err)
 		}
@@ -132,6 +128,9 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 }
 
 func (c *Cluster) validate(settings *Settings) error {
+	if c.Name == "" {
+		return fmt.Errorf("%s: cluster name required", c.config())
+	}
 	log.Info("Validating cluster: ", c.Name)
 
 	for name, source := range c.Sources {

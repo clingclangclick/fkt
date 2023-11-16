@@ -84,7 +84,7 @@ func (s *Source) process(settings *Settings, values Values, clusterPath string, 
 
 	err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	if !*s.Managed {
