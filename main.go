@@ -45,7 +45,7 @@ func main() {
 	}
 
 	if CLI.ConfigFile == "" {
-		fmt.Print("Configuration file not supplied.")
+		fmt.Print("Configuration file not supplied.\n\n")
 		_ = ctx.PrintUsage(true)
 		ctx.Exit(1)
 	}
@@ -57,7 +57,7 @@ func main() {
 
 	config, err := fkt.LoadConfig(CLI.ConfigFile)
 	if err != nil {
-		log.Error("Error loading config file: ", CLI.ConfigFile, " (", err, ")")
+		log.Panic("Error loading config file: ", CLI.ConfigFile, " (", err, ")")
 		ctx.Exit(1)
 	}
 
@@ -67,29 +67,27 @@ func main() {
 		File:   CLI.Logging.File,
 	})
 	if err != nil {
-		log.Error("Error setting configuration; ", err)
+		log.Panic("Error setting configuration; ", err)
 		ctx.Exit(1)
 	}
 
 	log.Debug("Configuration file: ", CLI.ConfigFile)
 
-	settings := config.Settings
-
-	err = settings.Validate()
+	err = config.Settings.Validate()
 	if err != nil {
-		log.Error("Error validating settings: ", err)
+		log.Panic("Error validating settings: ", CLI.ConfigFile, " (", err, ")")
 		ctx.Exit(1)
 	}
 
-	err = config.Validate(settings)
+	err = config.Validate()
 	if err != nil {
-		log.Error("Error validating configuration: ", err)
+		log.Panic("Error validating configuration: ", CLI.ConfigFile, " (", err, ")")
 		ctx.Exit(1)
 	}
 
-	err = config.Process(settings)
+	err = config.Process()
 	if err != nil {
-		log.Error("Error processing configuration: ", err)
+		log.Panic("Error processing configuration: ", CLI.ConfigFile, " (", err, ")")
 		ctx.Exit(1)
 	}
 

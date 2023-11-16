@@ -1,10 +1,9 @@
 package fkt
 
 import (
+	"errors"
 	"fmt"
 	"os"
-
-	"golang.org/x/sync/errgroup"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -39,40 +38,45 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	return &config, err
 }
 
-func (config *Config) Process(settings *Settings) error {
+func (config *Config) Process() error {
 	log.Info("Processing configuration...")
 
-	var eg = new(errgroup.Group)
+	invalid := []string{}
+	errs := errors.New("error processing")
 	for _, cluster := range config.Clusters {
-		c := cluster
+		err := cluster.process(config.Settings, config.Values)
+		if err != nil {
+			invalid = append(invalid, cluster.pathCluster())
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.pathCluster(), errs, err)
 
-		func(settings *Settings, c *Cluster) {
-			eg.Go(func() error {
-				return c.process(settings, &config.Values)
-			})
-		}(settings, &c)
+			log.Error("cannot process cluster: ", cluster.pathCluster())
+		}
 	}
-	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("processing failed: %w", errs)
 	}
 
 	return nil
 }
 
-func (config *Config) Validate(settings *Settings) error {
+func (config *Config) Validate() error {
 	log.Info("Validating configuration...")
 
-	var eg = new(errgroup.Group)
+	invalid := []string{}
+	errs := errors.New("error processing")
 	for _, cluster := range config.Clusters {
-		c := cluster
-		func(settings *Settings) {
-			eg.Go(func() error {
-				return c.validate(settings)
-			})
-		}(settings)
+		err := cluster.validate(config.Settings)
+		if err != nil {
+			invalid = append(invalid, cluster.pathCluster())
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.pathCluster(), errs, err)
+
+			log.Error("cannot validate cluster: ", cluster.pathCluster())
+		}
 	}
-	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
+
+	if len(invalid) > 0 {
+		return fmt.Errorf("configuration validation failed: %w", errs)
 	}
 
 	return nil

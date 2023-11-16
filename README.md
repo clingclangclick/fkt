@@ -107,7 +107,7 @@ data:
 
 ## Cluster paths
 
-Overlay cluster paths are in the order:
+Overlay cluster paths are in the form:
 `<platform>/<region>/<environment>/<name>`
 
 A managed cluster resets the cluster directory when ran, EXCEPT if source is unmanaged,
@@ -282,9 +282,9 @@ to the cluster Kustomization.
 
 ```golang
 type Config struct {
-  Settings      *Settings `yaml:"settings"`
-  Values        Values    `yaml:"values,flow"`
-  Clusters      []Cluster `yaml:"clusters"`
+	Settings      *Settings `yaml:"settings"`
+	Values        Values    `yaml:"values,flow"`
+	Clusters      []Cluster `yaml:"clusters"`
 }
 ```
 
@@ -292,17 +292,17 @@ type Config struct {
 
 ```golang
 type Settings struct {
-  Delimiters struct {
-    Left  string `yaml:"left"`
-    Right string `yaml:"right"`
-  } `yaml:"delimiters"`
-  Directories struct {
-    Sources       string `yaml:"sources"`
-    Overlays      string `yaml:"overlays"`
-    BaseDirectory string `yaml:"base_directory"`
-  } `yaml:"directories"`
-  DryRun    bool       `yaml:"dry_run"`
-  LogConfig *LogConfig `yaml:"log"`
+	Delimiters struct {
+		Left  string `yaml:"left"`
+		Right string `yaml:"right"`
+	} `yaml:"delimiters"`
+	Directories struct {
+		Sources       string `yaml:"sources"`
+		Overlays      string `yaml:"overlays"`
+		BaseDirectory string `yaml:"base_directory"`
+	} `yaml:"directories"`
+	DryRun    bool       `yaml:"dry_run"`
+	LogConfig *LogConfig `yaml:"log"`
 }
 ```
 
@@ -310,8 +310,8 @@ type Settings struct {
 
 ```golang
 type LogConfig struct {
-  Level  LogLevel `yaml:"level"`  // One of none (panic), trace, debug, info, error
-  File   string   `yaml:"file"`   // Default stdout
+	Level  LogLevel `yaml:"level"`  // One of none (panic), trace, debug, info, error
+	File   string   `yaml:"file"`   // Default stdout
   Format string   `yaml:"format"` // One of console, json. Default console
 }
 ```
