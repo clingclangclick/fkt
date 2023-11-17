@@ -25,7 +25,7 @@ type Settings struct {
 	Directories struct {
 		Sources       string `yaml:"sources"`
 		Overlays      string `yaml:"overlays"`
-		baseDirectory string
+		BaseDirectory string `yaml:"base_directory"`
 	} `yaml:"directories"`
 	DryRun    bool       `yaml:"dry_run"`
 	LogConfig *LogConfig `yaml:"log"`
@@ -59,20 +59,20 @@ func (settings *Settings) Defaults(
 	}
 	log.Info("Sources Directory: ", settings.Directories.Sources)
 
-	if settings.Directories.baseDirectory == "" {
+	if settings.Directories.BaseDirectory == "" {
 		if baseDirectory == "" {
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("error getting current working directory: %w", err)
 			}
 			log.Trace("Settings default directory base: ", utils.RelWD(cwd))
-			settings.Directories.baseDirectory = cwd
+			settings.Directories.BaseDirectory = cwd
 		} else {
 			log.Trace("Settings default directory base: ", utils.RelWD(baseDirectory), ", creating.")
-			settings.Directories.baseDirectory = baseDirectory
+			settings.Directories.BaseDirectory = baseDirectory
 		}
 	}
-	log.Info("Base Directory: ", settings.Directories.baseDirectory)
+	log.Info("Base Directory: ", settings.Directories.BaseDirectory)
 
 	if settings.Delimiters.Left == "" {
 		log.Trace("Settings default delimiter left: ", settingsDefaults["delimiter_left"])
@@ -92,10 +92,10 @@ func (settings *Settings) Defaults(
 func (settings *Settings) Validate() error {
 	log.Info("Validating settings")
 
-	if settings.Directories.baseDirectory == "" {
+	if settings.Directories.BaseDirectory == "" {
 		return fmt.Errorf("base directory not set")
 	} else {
-		exist, err := utils.IsDir(settings.Directories.baseDirectory)
+		exist, err := utils.IsDir(settings.Directories.BaseDirectory)
 		if !exist || err != nil {
 			return fmt.Errorf("base directory does not exist: %w", err)
 		}
@@ -127,9 +127,9 @@ func (settings *Settings) Validate() error {
 }
 
 func (settings *Settings) pathOverlays() string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Overlays)
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays)
 }
 
 func (settings *Settings) pathSources() string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Sources)
+	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources)
 }

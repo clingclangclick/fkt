@@ -27,16 +27,16 @@ Flags:
 ---
 settings:
   directories:
-    sources: sources           # path containing sources
-    overlays: overlays         # path to place templated files
+    sources: sources         # path containing sources
+    overlays: overlays       # path to place templated files
   delimiters:
-    left: '[[['                # custom left delimiter
-    right: ']]]'               # custom right delimiter
+    left: '[[['              # custom left delimiter
+    right: ']]]'             # custom right delimiter
   log:
-    level: debug               # log level, one of none, trace, debug, info, warn, error. Default is none
-    format: json               # log format, one of console, json. Default is console
-    file: 'log.txt'            # log file, none infers stdout
-values:                        # global values
+    level: debug             # log level, one of none, trace, debug, info, warn, error. Default is none
+    format: json             # log format, one of console, json. Default is console
+    file: 'log.txt'          # log file, none infers stdout
+values:                      # global values
   global_key: global_value
   global_array_keys:
     - global_array_key: global_array_value
@@ -46,13 +46,12 @@ values:                        # global values
     - global_slice_one
     - global_slice_two
 clusters:
-  - platform: platform         # cluster platform, templated as `Cluster.platform`; also included in kustomize annotations
-    name: cluster              # cluster name, templated as `Cluster.name`; also included in kustomize annotations
-    annotations:               # annotations for cluster, added into kustomize file, templated as `Cluster.annotations`
-      region: region           # cluster region annotation example, templated as `Cluster.annotations.region`
-      environment: environment # cluster environment annotation example, templated as `Cluster.annotations.environment`
-    managed: true              # prune cluster output directory, manage top-level kustomize.yaml file, templated as `Cluster.managed`
-    values:                    # cluster level values, supercedes global values
+  - platform: platform        # cluster platform, freeform provider, templated as `Cluster.platform`
+    name: cluster             # cluster name, templated as `Cluster.name`
+    region: region            # cluster region, templated as `Cluster.region`
+    environment: environment  # cluster environment, templated as `Cluster.environment`
+    managed: true             # prune cluster output directory, manage top-level kustomize.yaml file
+    values:                   # cluster level values, supercedes global values
       cluster_inline_folded: >
         Several lines of text,
         with some "quotes" of various 'types',
@@ -108,18 +107,18 @@ data:
 
 ## Cluster paths
 
-Overlays cluster paths are in the order:
-`<overlays directory>/<platform>/<name>`
+Overlay cluster paths are in the form:
+`<platform>/<region>/<environment>/<name>`
 
 A managed cluster resets the cluster directory when ran, EXCEPT if source is unmanaged,
-i.e. `<source>.Managed` is `false`. In this case, the unmanaged source path for the cluster
+i.e. `source.Managed` is `false`. In this case, the unmanaged source path for the cluster
 is:
 
 * Not removed
 * If a `kustomization.yaml` or `kustomization.yml` exists, the cluster `kustomization.yaml`
   will include the unmanaged source.
 
-The managed source functionality exists to support FluxCD cluster bootstrap in a managed cluster.
+This functionality exists to bootstrap FluxCD in a cluster.
 
 ## Values
 
@@ -159,7 +158,7 @@ array_keys: cluster_array_value
 
 ### YAML multiline values
 
-YAML [multiline string](https://yaml-multiline.info/) values are supported,
+YAML [multiline string](https://yaml-multiline.info/) values are supported, 
 but due to templating quotes may need doubled.
 
 For example, values as:
@@ -202,6 +201,7 @@ inline_literal: |[[[ nindent 4 .Values.cluster_inline_literal ]]]
 inline_single_quoted: '[[[ indent 4 .Values.cluster_inline_single_quoted | trim ]]]'
 ```
 
+
 Become:
 
 ```yaml
@@ -237,9 +237,9 @@ Access as `.Cluster.<property>`
 Properties:
 
 * `platform`
+* `region`
+* `environment`
 * `name`
-* `managed`
-* `annotations`: additional annotations, `name` and `platform` are reserved keys
 
 ### Source values
 
@@ -322,7 +322,8 @@ type LogConfig struct {
 type Cluster struct {
   Platform    string             `yaml:"platform"`
   Name        string             `yaml:"name"`
-  Annotations map[string]string  `yaml:"annotations"`
+  Region      string             `yaml:"region"`
+  Environment string             `yaml:"environment"`
   Managed     bool               `yaml:"managed"`
   Values      Values             `yaml:"values,flow"`
   Sources     map[string]*Source `yaml:"sources"`
