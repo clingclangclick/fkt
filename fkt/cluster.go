@@ -14,26 +14,25 @@ import (
 type Cluster struct {
 	Platform    string             `yaml:"platform"`
 	Name        string             `yaml:"name"`
-	Region      string             `yaml:"region"`
-	Environment string             `yaml:"environment"`
+	Annotations map[string]string  `yaml:"annotations"`
 	Managed     bool               `yaml:"managed"`
 	Values      Values             `yaml:"values,flow"`
 	Sources     map[string]*Source `yaml:"sources"`
 }
 
-func (c *Cluster) config() map[string]string {
-	config := make(map[string]string)
+func (c *Cluster) config() Values {
+	config := make(Values)
 
 	config["platform"] = c.Platform
-	config["region"] = c.Region
-	config["environment"] = c.Environment
 	config["name"] = c.Name
+	config["annotations"] = c.Annotations
+	config["managed"] = c.Managed
 
 	return config
 }
 
 func (c *Cluster) pathCluster() string {
-	return filepath.Join(c.Platform, c.Environment, c.Region, c.Name)
+	return filepath.Join(c.Platform, c.Name)
 }
 
 func (c *Cluster) pathOverlays(settings *Settings) string {
@@ -118,7 +117,14 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 			Cluster: c,
 		}
 
-		err := kustomization.generate(settings, c.config(), settings.DryRun)
+		annotations := make(map[string]string)
+		for _, k := range c.Annotations {
+			annotations[k] = c.Annotations[k]
+		}
+		annotations["name"] = c.Name
+		annotations["platform"] = c.Platform
+
+		err := kustomization.generate(settings, annotations, settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -128,10 +134,21 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 }
 
 func (c *Cluster) validate(settings *Settings) error {
+	log.Info("Validating cluster: ", c.Name)
+
 	if c.Name == "" {
 		return fmt.Errorf("%s: cluster name required", c.config())
 	}
-	log.Info("Validating cluster: ", c.Name)
+	if _, ok := c.Annotations["name"]; ok {
+		return fmt.Errorf("%s: key 'name' reserved for annotations", c.config())
+	}
+
+	if c.Platform == "" {
+		return fmt.Errorf("%s: cluster platform required", c.config())
+	}
+	if _, ok := c.Annotations["platform"]; ok {
+		return fmt.Errorf("%s: key 'platform' reserved for annotations", c.config())
+	}
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)

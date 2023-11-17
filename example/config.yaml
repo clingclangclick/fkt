@@ -34,13 +34,13 @@ values:
 clusters:
   - platform: platform
     name: unmanaged
-    region: region
-    environment: environment
-    managed: false
+    managed: true
+    annotations:
+      region: region
+    sources:
+      <<: [*configmaps]
   - platform: platform
     name: managed
-    region: region
-    environment: environment
     managed: true
     unmanaged:
       - flux-system
