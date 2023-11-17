@@ -6,7 +6,6 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/alecthomas/kong v0.8.1
 	github.com/sirupsen/logrus v1.9.3
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	gopkg.in/yaml.v3 v3.0.1
 )
 

@@ -65,7 +65,6 @@ func (settings *Settings) Defaults(
 			if err != nil {
 				return fmt.Errorf("error getting current working directory: %w", err)
 			}
-
 			log.Trace("Settings default directory base: ", utils.RelWD(cwd))
 			settings.Directories.baseDirectory = cwd
 		} else {
