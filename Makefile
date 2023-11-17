@@ -11,10 +11,10 @@ test: export BIN=.bin/fkt
 test: build
 race test:
 	@echo Processing...
-	$(BIN)
+	@$(BIN)
 	@echo
 	@echo Diffing...
-	$(BIN) -d -l none && echo "No differences" || echo "ERROR: Differences found"
+	@$(BIN) -d -l none && echo "No differences" || echo "ERROR: Differences found"
 
 vendor: tidy
 	go mod vendor

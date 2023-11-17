@@ -18,8 +18,8 @@ type Source struct {
 	Name      string
 }
 
-func (s *Source) config() map[string]string {
-	config := make(map[string]string)
+func (s *Source) config() Values {
+	config := make(Values)
 
 	config["name"] = s.Name
 	config["origin"] = *s.Origin
@@ -60,11 +60,11 @@ func (s *Source) defaults(name string) {
 }
 
 func (s *Source) pathDestination(settings *Settings, clusterPath string) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
 }
 
 func (s *Source) pathSource(settings *Settings) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Sources, *s.Origin)
 }
 
 func (s *Source) process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
