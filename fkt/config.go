@@ -12,9 +12,9 @@ import (
 )
 
 type Config struct {
-	Settings *Settings `yaml:"settings"`
-	Values   Values    `yaml:"values,flow"`
-	Clusters []Cluster `yaml:"clusters"`
+	Settings *Settings           `yaml:"settings"`
+	Values   Values              `yaml:"values,flow"`
+	Clusters map[string]*Cluster `yaml:"clusters"`
 }
 
 func LoadConfig(configurationFile string) (*Config, error) {
@@ -43,13 +43,17 @@ func (config *Config) Process() error {
 
 	invalid := []string{}
 	errs := errors.New("error processing")
-	for _, cluster := range config.Clusters {
-		err := cluster.process(config.Settings, config.Values)
+	for path, cluster := range config.Clusters {
+		if cluster == nil {
+			cluster = &Cluster{}
+		}
+		cluster.defaults(path)
+		err := cluster.process(config.Settings, path, config.Values)
 		if err != nil {
-			invalid = append(invalid, cluster.pathCluster())
-			errs = fmt.Errorf("%s\n%w\n%w", cluster.pathCluster(), errs, err)
+			invalid = append(invalid, cluster.path)
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.path, errs, err)
 
-			log.Error("cannot process cluster: ", cluster.pathCluster())
+			log.Error("cannot process cluster: ", cluster.path)
 		}
 	}
 
@@ -65,13 +69,17 @@ func (config *Config) Validate() error {
 
 	invalid := []string{}
 	errs := errors.New("error processing")
-	for _, cluster := range config.Clusters {
+	for path, cluster := range config.Clusters {
+		if cluster == nil {
+			cluster = &Cluster{}
+		}
+		cluster.defaults(path)
 		err := cluster.validate(config.Settings)
 		if err != nil {
-			invalid = append(invalid, cluster.pathCluster())
-			errs = fmt.Errorf("%s\n%w\n%w", cluster.pathCluster(), errs, err)
+			invalid = append(invalid, cluster.path)
+			errs = fmt.Errorf("%s\n%w\n%w", cluster.path, errs, err)
 
-			log.Error("cannot validate cluster: ", cluster.pathCluster())
+			log.Error("cannot validate cluster: ", cluster.path)
 		}
 	}
 

@@ -32,15 +32,18 @@ values:
     - global_slice_one
     - global_slice_two
 clusters:
-  - platform: platform
-    name: unmanaged
-    region: region
-    environment: environment
-    managed: false
-  - platform: platform
-    name: managed
-    region: region
-    environment: environment
+  platform/managed:
+    managed: true
+    annotations:
+      platform: platform
+      name: name
+      region: region
+    sources:
+      <<: [*configmaps]
+  platform/unmanaged:
+    annotations:
+      platform: platform
+      name: managed
     managed: true
     unmanaged:
       - flux-system
