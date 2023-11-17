@@ -18,8 +18,8 @@ type Source struct {
 	Name      string
 }
 
-func (s *Source) config() map[string]string {
-	config := make(map[string]string)
+func (s *Source) config() Values {
+	config := make(Values)
 
 	config["name"] = s.Name
 	config["origin"] = *s.Origin
@@ -33,21 +33,21 @@ func (s *Source) defaults(name string) {
 	log.Debug("Source name: ", s.Name)
 
 	if s.Managed == nil {
-		log.Debug("Managed unset, setting to `true`")
+		log.Debug("Source managed unset, setting to `true`")
 		s.Managed = new(bool)
 		*s.Managed = true
 	}
 	log.Debug("Source managed: ", *s.Managed)
 
 	if s.Namespace == nil {
-		log.Debug("Namespace unset, setting to `default`")
+		log.Debug("Source namespace unset, setting to `default`")
 		s.Namespace = new(string)
 		*s.Namespace = "default"
 	}
 	log.Debug("Source namespace: ", *s.Namespace)
 
 	if s.Origin == nil {
-		log.Debug("Origin unset, setting to source name")
+		log.Debug("Source origin unset, setting to source name")
 		s.Origin = new(string)
 		*s.Origin = name
 	}
@@ -60,11 +60,11 @@ func (s *Source) defaults(name string) {
 }
 
 func (s *Source) pathDestination(settings *Settings, clusterPath string) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Overlays, clusterPath, s.Name)
 }
 
 func (s *Source) pathSource(settings *Settings) string {
-	return filepath.Join(settings.Directories.BaseDirectory, settings.Directories.Sources, *s.Origin)
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Sources, *s.Origin)
 }
 
 func (s *Source) process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
