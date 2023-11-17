@@ -12,40 +12,51 @@ import (
 )
 
 type Cluster struct {
-	Platform    string             `yaml:"platform"`
-	Name        string             `yaml:"name"`
 	Annotations map[string]string  `yaml:"annotations"`
-	Managed     bool               `yaml:"managed"`
-	Values      Values             `yaml:"values,flow"`
+	Managed     *bool              `yaml:"managed"`
+	Values      *Values            `yaml:"values,flow"`
 	Sources     map[string]*Source `yaml:"sources"`
+	path        string
 }
 
 func (c *Cluster) config() Values {
 	config := make(Values)
 
-	config["platform"] = c.Platform
-	config["name"] = c.Name
+	config["path"] = c.path
 	config["annotations"] = c.Annotations
 	config["managed"] = c.Managed
 
 	return config
 }
 
-func (c *Cluster) pathCluster() string {
-	return filepath.Join(c.Platform, c.Name)
+func (c *Cluster) defaults(path string) {
+	c.path = path
+
+	if c.Managed == nil {
+		log.Debug("Cluster managed unset, setting to `true`")
+		c.Managed = new(bool)
+		*c.Managed = true
+	}
+	log.Debug("Cluster managed: ", *c.Managed)
+
+	if c.Values == nil {
+		log.Debug("Cluster values unset, setting to `true`")
+		c.Values = new(Values)
+	}
+	log.Debug("Cluster managed: ", *c.Managed)
 }
 
 func (c *Cluster) pathOverlays(settings *Settings) string {
-	return filepath.Join(settings.pathOverlays(), c.pathCluster())
+	return filepath.Join(settings.pathOverlays(), c.path)
 }
 
-func (c *Cluster) process(settings *Settings, globalValues Values) error {
+func (c *Cluster) process(settings *Settings, path string, globalValues Values) error {
 	if c.Values == nil {
-		log.Trace("Cluster ", c.Name, " has no values")
-		c.Values = Values{}
+		log.Trace("Cluster ", c.path, " has no values")
+		c.Values = &Values{}
 	}
 
-	clusterGlobalValues := globalValues.processValues(c.Values)
+	clusterGlobalValues := globalValues.processValues(*c.Values)
 	log.Debug("clusterGlobalValues: ", clusterGlobalValues.dump())
 
 	err := utils.MkDir(c.pathOverlays(settings), settings.DryRun)
@@ -67,7 +78,7 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 			continue
 		}
 
-		log.Info("Processing Source: ", *source.Origin, ", into ", c.Name, "/", sourceName)
+		log.Info("Processing Source: ", *source.Origin, ", into ", c.path, "/", sourceName)
 
 		values := make(Values)
 		values["Cluster"] = c.config()
@@ -75,7 +86,7 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 		values["Values"] = clusterGlobalValues.processValues(source.Values)
 		log.Trace("Values: ", values.dump())
 
-		err := source.process(settings, values, c.pathCluster())
+		err := source.process(settings, values, c.path)
 		if err != nil {
 			return fmt.Errorf("cannot process source: %s; %w", source.Name, err)
 		}
@@ -107,7 +118,7 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 		}
 	}
 
-	if c.Managed {
+	if *c.Managed {
 		log.Debug("Removing unnecessary source destination paths: ", removableSourcePaths)
 		for _, removableSourcePath := range removableSourcePaths {
 			err := os.RemoveAll(removableSourcePath)
@@ -116,19 +127,12 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 			}
 		}
 
-		log.Debug("Generating kustomization for cluster: ", c.Name)
+		log.Debug("Generating kustomization for cluster: ", c.path)
 		kustomization := &Kustomization{
 			Cluster: c,
 		}
 
-		annotations := make(map[string]string)
-		for _, k := range c.Annotations {
-			annotations[k] = c.Annotations[k]
-		}
-		annotations["name"] = c.Name
-		annotations["platform"] = c.Platform
-
-		err := kustomization.generate(settings, annotations, settings.DryRun)
+		err := kustomization.generate(settings, c.Annotations, settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -138,21 +142,7 @@ func (c *Cluster) process(settings *Settings, globalValues Values) error {
 }
 
 func (c *Cluster) validate(settings *Settings) error {
-	log.Info("Validating cluster: ", c.Name)
-
-	if c.Name == "" {
-		return fmt.Errorf("%s: cluster name required", c.config())
-	}
-	if _, ok := c.Annotations["name"]; ok {
-		return fmt.Errorf("%s: key 'name' reserved for annotations", c.config())
-	}
-
-	if c.Platform == "" {
-		return fmt.Errorf("%s: cluster platform required", c.config())
-	}
-	if _, ok := c.Annotations["platform"]; ok {
-		return fmt.Errorf("%s: key 'platform' reserved for annotations", c.config())
-	}
+	log.Info("Validating cluster: ", c.path)
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)

@@ -33,21 +33,21 @@ func (s *Source) defaults(name string) {
 	log.Debug("Source name: ", s.Name)
 
 	if s.Managed == nil {
-		log.Debug("Managed unset, setting to `true`")
+		log.Debug("Source managed unset, setting to `true`")
 		s.Managed = new(bool)
 		*s.Managed = true
 	}
 	log.Debug("Source managed: ", *s.Managed)
 
 	if s.Namespace == nil {
-		log.Debug("Namespace unset, setting to `default`")
+		log.Debug("Source namespace unset, setting to `default`")
 		s.Namespace = new(string)
 		*s.Namespace = "default"
 	}
 	log.Debug("Source namespace: ", *s.Namespace)
 
 	if s.Origin == nil {
-		log.Debug("Origin unset, setting to source name")
+		log.Debug("Source origin unset, setting to source name")
 		s.Origin = new(string)
 		*s.Origin = name
 	}

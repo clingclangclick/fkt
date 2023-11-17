@@ -46,40 +46,12 @@ values:                        # global values
     - global_slice_one
     - global_slice_two
 clusters:
-  - platform: platform         # cluster platform, templated as `Cluster.platform`; also included in kustomize annotations
-    name: cluster              # cluster name, templated as `Cluster.name`; also included in kustomize annotations
+  path:                        # cluster path
     annotations:               # annotations for cluster, added into kustomize file, templated as `Cluster.annotations`
-      region: region           # cluster region annotation example, templated as `Cluster.annotations.region`
-      environment: environment # cluster environment annotation example, templated as `Cluster.annotations.environment`
+      key: value               # cluster k/v annotation example, templated as `Cluster.annotations.key`
+      name: name               # name becomes path if unset
     managed: true              # prune cluster output directory, manage top-level kustomize.yaml file, templated as `Cluster.managed`
     values:                    # cluster level values, supercedes global values
-      cluster_inline_folded: >
-        Several lines of text,
-        with some "quotes" of various 'types',
-        and also a blank line:
-
-        and some text with
-          extra indentation
-          on the next line,
-        plus another line at the end.
-
-
-      cluster_inline_literal: |
-        Several lines of text,
-        with some "quotes" of various 'types',
-        and also a blank line:
-
-        and some text with
-          extra indentation
-        on the next line,
-        plus another line at the end.
-
-
-      cluster_inline_single_quoted: 'Several lines of text,
-        ·containing ''''single quotes''''. Escapes (like \n) don''''t do anything.
-
-        Newlines can be added by leaving a blank line.
-          Leading whitespace on lines is ignored.'
       cluster_key: cluster_value
       cluster_array_keys:
         - cluster_array_slice: cluster_array_value
@@ -108,8 +80,9 @@ data:
 
 ## Cluster paths
 
-Overlays cluster paths are in the order:
-`<overlays directory>/<platform>/<name>`
+Cluster paths are unique within the `clusters` mapping.
+
+### Managed cluster
 
 A managed cluster resets the cluster directory when ran, EXCEPT if source is unmanaged,
 i.e. `<source>.Managed` is `false`. In this case, the unmanaged source path for the cluster
@@ -119,7 +92,7 @@ is:
 * If a `kustomization.yaml` or `kustomization.yml` exists, the cluster `kustomization.yaml`
   will include the unmanaged source.
 
-The managed source functionality exists to support FluxCD cluster bootstrap in a managed cluster.
+Managed source functionality is used to support FluxCD cluster bootstrap in a managed cluster.
 
 ## Values
 
@@ -236,10 +209,9 @@ Access as `.Cluster.<property>`
 
 Properties:
 
-* `platform`
-* `name`
-* `managed`
-* `annotations`: additional annotations, `name` and `platform` are reserved keys
+* `annotations`: kustomize annotations
+* `managed`: managed boolean
+* `path`: cluster path
 
 ### Source values
 
@@ -282,9 +254,9 @@ to the cluster Kustomization.
 
 ```golang
 type Config struct {
-	Settings      *Settings `yaml:"settings"`
-	Values        Values    `yaml:"values,flow"`
-	Clusters      []Cluster `yaml:"clusters"`
+  Settings *Settings           `yaml:"settings"`
+  Values   Values              `yaml:"values,flow"`
+  Clusters map[string]*Cluster `yaml:"clusters"`
 }
 ```
 
@@ -292,17 +264,17 @@ type Config struct {
 
 ```golang
 type Settings struct {
-	Delimiters struct {
-		Left  string `yaml:"left"`
-		Right string `yaml:"right"`
-	} `yaml:"delimiters"`
-	Directories struct {
-		Sources       string `yaml:"sources"`
-		Overlays      string `yaml:"overlays"`
-		BaseDirectory string `yaml:"base_directory"`
-	} `yaml:"directories"`
-	DryRun    bool       `yaml:"dry_run"`
-	LogConfig *LogConfig `yaml:"log"`
+  Delimiters struct {
+    Left  string `yaml:"left"`
+    Right string `yaml:"right"`
+  } `yaml:"delimiters"`
+  Directories struct {
+    Sources       string `yaml:"sources"`
+    Overlays      string `yaml:"overlays"`
+    baseDirectory string
+  } `yaml:"directories"`
+  DryRun    bool       `yaml:"dry_run"`
+  LogConfig *LogConfig `yaml:"log"`
 }
 ```
 
@@ -310,8 +282,8 @@ type Settings struct {
 
 ```golang
 type LogConfig struct {
-	Level  LogLevel `yaml:"level"`  // One of none (panic), trace, debug, info, error
-	File   string   `yaml:"file"`   // Default stdout
+  Level  LogLevel `yaml:"level"`  // One of none (panic), trace, debug, info, error
+  File   string   `yaml:"file"`   // Default stdout
   Format string   `yaml:"format"` // One of console, json. Default console
 }
 ```
@@ -320,12 +292,11 @@ type LogConfig struct {
 
 ```golang
 type Cluster struct {
-  Platform    string             `yaml:"platform"`
-  Name        string             `yaml:"name"`
   Annotations map[string]string  `yaml:"annotations"`
-  Managed     bool               `yaml:"managed"`
-  Values      Values             `yaml:"values,flow"`
+  Managed     *bool              `yaml:"managed"`
+  Values      *Values            `yaml:"values,flow"`
   Sources     map[string]*Source `yaml:"sources"`
+  path        string
 }
 ```
 
@@ -333,10 +304,11 @@ type Cluster struct {
 
 ```golang
 type Source struct {
-  Path      *string `yaml:"path"`
+  Origin    *string `yaml:"origin"`
   Namespace *string `yaml:"namespace"`
   Values    Values  `yaml:"values,flow"`
   Managed   *bool   `yaml:"managed"`
+  Name      string
 }
 ```
 

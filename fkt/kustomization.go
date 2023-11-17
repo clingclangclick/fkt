@@ -32,7 +32,7 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 	}
 
 	if len(resources) == 0 {
-		log.Warn("No kustomization resources in: ", k.Cluster.pathCluster())
+		log.Warn("No kustomization resources in: ", k.Cluster.path)
 		return nil
 	}
 
