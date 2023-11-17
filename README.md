@@ -12,13 +12,14 @@ Usage: fkt
 FluxCD Kind of Templater.
 
 Flags:
-  -h, --help                         Show context-sensitive help.
-  -f, --config-file="config.yaml"    YAML configuration file ($CONFIG_FILE)
-  -b, --base-directory="."           Sources and overlays base directory ($BASE_DIRECTORY)
-  -d, --dry-run                      Validate and return error if changes are needed ($DRY_RUN)
-  -l, --logging.level="info"         Log level ($LOG_LEVEL)
-  -o, --logging.file=STRING          Log file ($LOG_FILE)
-  -t, --logging.format="console"     Log format ($LOG_FORMAT)
+  -h, --help                        Show context-sensitive help.
+  -f, --config-file=STRING          YAML configuration file ($CONFIG_FILE)
+  -b, --base-directory="."          Sources and overlays base directory ($BASE_DIRECTORY)
+  -d, --dry-run                     Dry run and return error if changes are needed ($DRY_RUN)
+  -v, --validate                    Validate configuration ($VALIDATE)
+  -l, --logging.level="default"     Log level ($LOG_LEVEL)
+  -o, --logging.file=STRING         Log file ($LOG_FILE)
+  -t, --logging.format="default"    Log format ($LOG_FORMAT)
 ```
 
 ### Example

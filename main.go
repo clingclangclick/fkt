@@ -15,7 +15,8 @@ import (
 var CLI struct {
 	ConfigFile    string `type:"existingfile" short:"f" help:"YAML configuration file" env:"CONFIG_FILE"`
 	BaseDirectory string `type:"existingdirectory" short:"b" help:"Sources and overlays base directory" env:"BASE_DIRECTORY" default:"${base_directory}"`
-	DryRun        bool   `short:"d" help:"Validate and return error if changes are needed" env:"DRY_RUN" default:"false"`
+	DryRun        bool   `short:"d" help:"Dry run and return error if changes are needed" env:"DRY_RUN" default:"false"`
+	Validate      bool   `short:"v" help:"Validate configuration" env:"VALIDATE" default:"false"`
 	Logging       struct {
 		Level  string `enum:"default,none,trace,debug,info,warn,error" short:"l" help:"Log level" env:"LOG_LEVEL" default:"${logging_level}"`
 		File   string `type:"path" short:"o" help:"Log file" env:"LOG_FILE"`
@@ -85,10 +86,12 @@ func main() {
 		ctx.Exit(1)
 	}
 
-	err = config.Process()
-	if err != nil {
-		log.Panic("Error processing configuration: ", CLI.ConfigFile, " (", err, ")")
-		ctx.Exit(1)
+	if !CLI.Validate {
+		err = config.Process()
+		if err != nil {
+			log.Panic("Error processing configuration: ", CLI.ConfigFile, " (", err, ")")
+			ctx.Exit(1)
+		}
 	}
 
 	ctx.Exit(0)
