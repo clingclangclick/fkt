@@ -1,25 +1,14 @@
 package fkt
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"text/template"
 
 	sprig "github.com/Masterminds/sprig/v3"
-	log "github.com/sirupsen/logrus"
 )
 
 type Values map[string]interface{}
-
-func (v *Values) dump() string {
-	dump, err := json.Marshal(v)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	return string(dump[:])
-}
 
 func (v *Values) processValues(values ...Values) Values {
 	for _, sv := range values {

@@ -32,6 +32,11 @@ func (c *Cluster) config() Values {
 func (c *Cluster) defaults(path string) {
 	c.path = path
 
+	if _, ok := c.Annotations["name"]; !ok {
+		_, name := filepath.Split(path)
+		c.Annotations["name"] = name
+	}
+
 	if c.Managed == nil {
 		log.Debug("Cluster managed unset, setting to `true`")
 		c.Managed = new(bool)
@@ -40,10 +45,9 @@ func (c *Cluster) defaults(path string) {
 	log.Debug("Cluster managed: ", *c.Managed)
 
 	if c.Values == nil {
-		log.Debug("Cluster values unset, setting to `true`")
 		c.Values = new(Values)
 	}
-	log.Debug("Cluster managed: ", *c.Managed)
+	log.Debug("Cluster Values: ", *c.Values)
 }
 
 func (c *Cluster) pathOverlays(settings *Settings) string {
@@ -56,15 +60,14 @@ func (c *Cluster) process(settings *Settings, path string, globalValues Values) 
 		c.Values = &Values{}
 	}
 
-	clusterGlobalValues := globalValues.processValues(*c.Values)
-	log.Debug("clusterGlobalValues: ", clusterGlobalValues.dump())
-
 	err := utils.MkDir(c.pathOverlays(settings), settings.DryRun)
 	if err != nil {
 		return err
 	}
 
+	clusterGlobalValues := globalValues.processValues(*c.Values)
 	processedSources := []string{}
+
 	for sourceName, source := range c.Sources {
 		if source == nil {
 			source = &Source{}
@@ -84,7 +87,7 @@ func (c *Cluster) process(settings *Settings, path string, globalValues Values) 
 		values["Cluster"] = c.config()
 		values["Source"] = source.config()
 		values["Values"] = clusterGlobalValues.processValues(source.Values)
-		log.Trace("Values: ", values.dump())
+		log.Trace("Values: ", values)
 
 		err := source.process(settings, values, c.path)
 		if err != nil {
