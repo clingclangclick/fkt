@@ -76,7 +76,7 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if source == nil {
 			source = &Source{}
 		}
-		source.defaults(sourceName)
+		source.load(sourceName)
 		if !*source.Managed {
 			continue
 		}

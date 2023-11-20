@@ -1,11 +1,11 @@
 package fkt
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	utils "github.com/clingclangclick/fkt/utils"
@@ -38,53 +38,51 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	return &config, err
 }
 
-func (config *Config) Process() error {
+func (config *Config) Process(settings *Settings) error {
 	log.Info("Processing configuration...")
 
-	invalid := []string{}
-	errs := errors.New("error processing")
+	var eg = new(errgroup.Group)
 	for path, cluster := range config.Clusters {
 		if cluster == nil {
 			cluster = &Cluster{}
 		}
-		cluster.defaults(path)
-		err := cluster.process(config.Settings, path, config.Values)
-		if err != nil {
-			invalid = append(invalid, cluster.path)
-			errs = fmt.Errorf("%s\n%w\n%w", cluster.path, errs, err)
 
-			log.Error("cannot process cluster: ", cluster.path)
-		}
+		c := cluster
+		c.load(path)
+
+		func(settings *Settings, c *Cluster) {
+			eg.Go(func() error {
+				return c.process(settings, &config.Values)
+			})
+		}(settings, c)
 	}
-
-	if len(invalid) > 0 {
-		return fmt.Errorf("processing failed: %w", errs)
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("processing failed: %w", err)
 	}
 
 	return nil
 }
 
-func (config *Config) Validate() error {
+func (config *Config) Validate(settings *Settings) error {
 	log.Info("Validating configuration...")
 
-	invalid := []string{}
-	errs := errors.New("error processing")
+	var eg = new(errgroup.Group)
 	for path, cluster := range config.Clusters {
 		if cluster == nil {
 			cluster = &Cluster{}
 		}
-		cluster.defaults(path)
-		err := cluster.validate(config.Settings)
-		if err != nil {
-			invalid = append(invalid, cluster.path)
-			errs = fmt.Errorf("%s\n%w\n%w", cluster.path, errs, err)
 
-			log.Error("cannot validate cluster: ", cluster.path)
-		}
+		c := cluster
+		c.load(path)
+
+		func(settings *Settings, c *Cluster) {
+			eg.Go(func() error {
+				return c.validate(settings)
+			})
+		}(settings, c)
 	}
-
-	if len(invalid) > 0 {
-		return fmt.Errorf("configuration validation failed: %w", errs)
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	return nil

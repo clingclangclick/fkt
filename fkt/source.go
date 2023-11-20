@@ -28,7 +28,7 @@ func (s *Source) config() Values {
 	return config
 }
 
-func (s *Source) defaults(name string) {
+func (s *Source) load(name string) {
 	s.Name = name
 	log.Debug("Source name: ", s.Name)
 
@@ -40,16 +40,14 @@ func (s *Source) defaults(name string) {
 	log.Debug("Source managed: ", *s.Managed)
 
 	if s.Namespace == nil {
-		log.Debug("Source namespace unset, setting to `default`")
-		s.Namespace = new(string)
-		*s.Namespace = "default"
+		log.Debug("Source namespace unset, setting to ", name)
+		s.Namespace = &name
 	}
 	log.Debug("Source namespace: ", *s.Namespace)
 
 	if s.Origin == nil {
 		log.Debug("Source origin unset, setting to source name")
-		s.Origin = new(string)
-		*s.Origin = name
+		s.Origin = &name
 	}
 	log.Debug("Source origin: ", *s.Origin)
 
@@ -84,7 +82,7 @@ func (s *Source) process(settings *Settings, values Values, clusterPath string, 
 
 	err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	if !*s.Managed {
@@ -147,7 +145,6 @@ func (s *Source) process(settings *Settings, values Values, clusterPath string, 
 }
 
 func (s *Source) validate(settings *Settings, name string) error {
-	s.defaults(name)
 	if *s.Managed {
 		path := filepath.Join(settings.pathSources(), *s.Origin)
 		_, err := utils.IsDir(path)

@@ -10,14 +10,15 @@ import (
 
 type Values map[string]interface{}
 
-func (v *Values) processValues(values ...Values) Values {
+func ProcessValues(values ...*Values) Values {
+	v := Values{}
 	for _, sv := range values {
-		for ik, iv := range sv {
-			(*v)[ik] = iv
+		for ik, iv := range *sv {
+			v[ik] = iv
 		}
 	}
 
-	return *v
+	return v
 }
 
 func (v *Values) template(sourcePath, destinationPath string, settings *Settings) error {

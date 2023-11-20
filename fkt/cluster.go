@@ -29,8 +29,13 @@ func (c *Cluster) config() Values {
 	return config
 }
 
-func (c *Cluster) defaults(path string) {
+func (c *Cluster) load(path string) {
 	c.path = path
+
+	if c.Annotations == nil {
+		log.Trace("Cluster ", c.path, " has no annotations")
+		c.Annotations = make(map[string]string)
+	}
 
 	if _, ok := c.Annotations["name"]; !ok {
 		_, name := filepath.Split(path)
@@ -54,7 +59,7 @@ func (c *Cluster) pathOverlays(settings *Settings) string {
 	return filepath.Join(settings.pathOverlays(), c.path)
 }
 
-func (c *Cluster) process(settings *Settings, path string, globalValues Values) error {
+func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 	if c.Values == nil {
 		log.Trace("Cluster ", c.path, " has no values")
 		c.Values = &Values{}
@@ -65,14 +70,13 @@ func (c *Cluster) process(settings *Settings, path string, globalValues Values) 
 		return err
 	}
 
-	clusterGlobalValues := globalValues.processValues(*c.Values)
 	processedSources := []string{}
 
 	for sourceName, source := range c.Sources {
 		if source == nil {
 			source = &Source{}
 		}
-		source.defaults(sourceName)
+		source.load(sourceName)
 
 		processedSources = append(processedSources, sourceName)
 
@@ -86,7 +90,7 @@ func (c *Cluster) process(settings *Settings, path string, globalValues Values) 
 		values := make(Values)
 		values["Cluster"] = c.config()
 		values["Source"] = source.config()
-		values["Values"] = clusterGlobalValues.processValues(source.Values)
+		values["Values"] = ProcessValues(globalValues, c.Values, &source.Values)
 		log.Trace("Values: ", values)
 
 		err := source.process(settings, values, c.path)
@@ -149,6 +153,12 @@ func (c *Cluster) validate(settings *Settings) error {
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)
+
+		if source == nil {
+			source = &Source{}
+		}
+		source.load(name)
+
 		err := source.validate(settings, name)
 		if err != nil {
 			return err
