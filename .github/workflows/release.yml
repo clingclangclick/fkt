@@ -117,6 +117,8 @@ jobs:
           POSITION=1
         fi
 
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
         git config versionsort.suffix "-"
         git fetch --tags --force origin 'refs/tags/*:refs/tags/*'
 
