@@ -48,7 +48,7 @@ func (config *Config) Process(settings *Settings) error {
 		}
 
 		c := cluster
-		c.defaults(path)
+		c.load(path)
 
 		func(settings *Settings, c *Cluster) {
 			eg.Go(func() error {
@@ -73,7 +73,7 @@ func (config *Config) Validate(settings *Settings) error {
 		}
 
 		c := cluster
-		c.defaults(path)
+		c.load(path)
 
 		func(settings *Settings, c *Cluster) {
 			eg.Go(func() error {

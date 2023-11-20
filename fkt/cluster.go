@@ -29,7 +29,7 @@ func (c *Cluster) config() Values {
 	return config
 }
 
-func (c *Cluster) defaults(path string) {
+func (c *Cluster) load(path string) {
 	c.path = path
 
 	if c.Annotations == nil {
@@ -76,7 +76,7 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 		if source == nil {
 			source = &Source{}
 		}
-		source.defaults(sourceName)
+		source.load(sourceName)
 
 		processedSources = append(processedSources, sourceName)
 
@@ -153,6 +153,12 @@ func (c *Cluster) validate(settings *Settings) error {
 
 	for name, source := range c.Sources {
 		log.Debug("Validating source: ", name)
+
+		if source == nil {
+			source = &Source{}
+		}
+		source.load(name)
+
 		err := source.validate(settings, name)
 		if err != nil {
 			return err

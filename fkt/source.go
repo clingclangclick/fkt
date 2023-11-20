@@ -28,7 +28,7 @@ func (s *Source) config() Values {
 	return config
 }
 
-func (s *Source) defaults(name string) {
+func (s *Source) load(name string) {
 	s.Name = name
 	log.Debug("Source name: ", s.Name)
 
@@ -82,7 +82,7 @@ func (s *Source) process(settings *Settings, values Values, clusterPath string, 
 
 	err := utils.MkCleanDir(destinationPath, []string{}, settings.DryRun)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
 	if !*s.Managed {
@@ -145,8 +145,6 @@ func (s *Source) process(settings *Settings, values Values, clusterPath string, 
 }
 
 func (s *Source) validate(settings *Settings, name string) error {
-	s.defaults(name)
-
 	if *s.Managed {
 		path := filepath.Join(settings.pathSources(), *s.Origin)
 		_, err := utils.IsDir(path)
