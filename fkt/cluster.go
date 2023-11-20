@@ -105,6 +105,7 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 	}
 
 	removableSourcePaths := []string{}
+
 	for _, sourceEntry := range sourceEntries {
 		sourceEntryName := sourceEntry.Name()
 		sourcePath := filepath.Join(c.pathOverlays(settings), sourceEntryName)
