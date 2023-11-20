@@ -43,7 +43,6 @@ clusters:
   platform/unmanaged:
     annotations:
       platform: platform
-      name: managed
     managed: true
     unmanaged:
       - flux-system

@@ -50,7 +50,7 @@ clusters:
   path:                        # cluster path
     annotations:               # annotations for cluster, added into kustomize file, templated as `Cluster.annotations`
       key: value               # cluster k/v annotation example, templated as `Cluster.annotations.key`
-      name: name               # name becomes path if unset
+      name: name               # annotation name defaults to path stem if unset
     managed: true              # prune cluster output directory, manage top-level kustomize.yaml file, templated as `Cluster.managed`
     values:                    # cluster level values, supercedes global values
       cluster_key: cluster_value
