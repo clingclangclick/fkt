@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 
 	"gopkg.in/yaml.v3"
 
@@ -77,6 +76,7 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 			source = &Source{}
 		}
 		source.load(sourceName)
+
 		if !*source.Managed {
 			continue
 		}
@@ -111,8 +111,6 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 			}
 		}
 	}
-
-	sort.Strings(resources)
 
 	return resources, nil
 }
