@@ -104,11 +104,12 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 		return fmt.Errorf("cannot get listing of sources in cluster path: %s; %w", c.pathOverlays(settings), err)
 	}
 
-	log.Trace("Checking entries: ", sourceEntries)
 	removableSourcePaths := []string{}
 	for _, sourceEntry := range sourceEntries {
 		sourceEntryName := sourceEntry.Name()
 		sourcePath := filepath.Join(c.pathOverlays(settings), sourceEntryName)
+
+		log.Debug("Checking source ", sourceEntryName, ", path ", sourcePath)
 
 		exists, err := utils.IsDir(sourcePath)
 		if settings.DryRun {
