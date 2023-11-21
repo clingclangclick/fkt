@@ -132,6 +132,26 @@ jobs:
         THIS_VERSION="$(increment_version "$CURRENT_VERSION" "$POSITION")"
         TAG_VERSION="v$THIS_VERSION"
 
+        if [ "$HAS_SSH_DEPLOY_PRIVATE_KEY" = "true" ]; then
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_DEPLOY_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+          IMAGE="$DOCKER_REPOSITORY:$THIS_VERSION"
+          export IMAGE
+          yq '.runs.image = "docker://" + env(IMAGE)' -i action.yml 2>&1
+          yq '.[0].entry = env(IMAGE)' -i .pre-commit-hooks.yaml 2>&1
+
+          git config --global --add safe.file "action.yml"
+          git config --global --add safe.file ".pre-commit-hooks.yaml"
+          git add action.yml .pre-commit-hooks.yaml
+
+          git commit --amend --no-edit
+          git push --force -u origin main
+        fi
+
         SHA="$(git rev-parse HEAD)"
         git tag -a -m "$TITLE" -m "$BODY" "$TAG_VERSION" "$SHA"
         git push --follow-tags --force origin "$TAG_VERSION"
