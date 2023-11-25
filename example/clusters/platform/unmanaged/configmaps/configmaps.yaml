@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: configmaps
-  namespace: configmaps
-data:
-  name: unmanaged
-  template: configmaps
