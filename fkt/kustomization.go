@@ -35,7 +35,7 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 		return nil
 	}
 
-	destinationPath := k.Cluster.pathOverlays(settings)
+	destinationPath := k.Cluster.pathClusters(settings)
 
 	log.Info("Generating kustomization for: ", resources)
 	isDir, err := utils.IsDir(destinationPath)
@@ -71,22 +71,22 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 	resources := []string{}
 
-	for sourceName, source := range k.Cluster.Sources {
-		if source == nil {
-			source = &Source{}
+	for resourceName, resource := range k.Cluster.Resources {
+		if resource == nil {
+			resource = &Resource{}
 		}
-		source.load(sourceName)
+		resource.load(resourceName)
 
-		if !*source.Managed {
+		if !*resource.Managed {
 			continue
 		}
 
-		resources = append(resources, sourceName)
+		resources = append(resources, resourceName)
 	}
 
-	destinationPath := k.Cluster.pathOverlays(settings)
+	clusterPath := k.Cluster.pathClusters(settings)
 
-	d, err := os.Open(destinationPath)
+	d, err := os.Open(clusterPath)
 	if err != nil {
 		return []string{}, err
 	}
@@ -101,12 +101,12 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if found {
 			continue
 		}
-		de, err := utils.IsDir(filepath.Join(destinationPath, entry))
+		de, err := utils.IsDir(filepath.Join(clusterPath, entry))
 		if err != nil {
 			return []string{}, err
 		}
 		if de {
-			if utils.ContainsKustomization(filepath.Join(destinationPath, entry)) {
+			if utils.ContainsKustomization(filepath.Join(clusterPath, entry)) {
 				resources = append(resources, entry)
 			}
 		}

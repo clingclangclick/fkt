@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: [[[ .Resource.name ]]]
+  namespace: [[[ .Resource.namespace ]]]
+data:
+  name: [[[ .Cluster.annotations.name ]]]
+  template: [[[ .Resource.template ]]]
