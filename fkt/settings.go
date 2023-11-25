@@ -11,10 +11,10 @@ import (
 )
 
 var settingsDefaults = map[string]string{
-	"directory_overlays": "overlays",
-	"directory_sources":  "sources",
-	"delimiter_left":     "[[[",
-	"delimiter_right":    "]]]",
+	"directory_clusters":  "clusters",
+	"directory_templates": "templates",
+	"delimiter_left":      "[[[",
+	"delimiter_right":     "]]]",
 }
 
 type Settings struct {
@@ -23,8 +23,8 @@ type Settings struct {
 		Right string `yaml:"right"`
 	} `yaml:"delimiters"`
 	Directories struct {
-		Sources       string `yaml:"sources"`
-		Overlays      string `yaml:"overlays"`
+		Templates     string `yaml:"templates"`
+		Clusters      string `yaml:"clusters"`
 		baseDirectory string
 	} `yaml:"directories"`
 	DryRun    bool       `yaml:"dry_run"`
@@ -47,17 +47,17 @@ func (settings *Settings) Defaults(
 	log.Info("Settings")
 	log.Info("Dry run: ", settings.DryRun)
 
-	if settings.Directories.Overlays == "" {
-		log.Trace("Settings default directory overlay: ", settingsDefaults["directory_overlays"])
-		settings.Directories.Overlays = settingsDefaults["directory_overlays"]
+	if settings.Directories.Clusters == "" {
+		log.Trace("Settings default clusters directory: ", settingsDefaults["directory_clusters"])
+		settings.Directories.Clusters = settingsDefaults["directory_cluster"]
 	}
-	log.Info("Overlays Directory: ", settings.Directories.Overlays)
+	log.Info("Clusters Directory: ", settings.Directories.Clusters)
 
-	if settings.Directories.Sources == "" {
-		log.Trace("Settings default directory source: ", settingsDefaults["directory_sources"])
-		settings.Directories.Sources = settingsDefaults["directory_sources"]
+	if settings.Directories.Templates == "" {
+		log.Trace("Settings default templates directory: ", settingsDefaults["directory_templates"])
+		settings.Directories.Templates = settingsDefaults["directory_templates"]
 	}
-	log.Info("Sources Directory: ", settings.Directories.Sources)
+	log.Info("Templates Directory: ", settings.Directories.Templates)
 
 	if settings.Directories.baseDirectory == "" {
 		if baseDirectory == "" {
@@ -65,10 +65,10 @@ func (settings *Settings) Defaults(
 			if err != nil {
 				return fmt.Errorf("error getting current working directory: %w", err)
 			}
-			log.Trace("Settings default directory base: ", utils.RelWD(cwd))
+			log.Trace("Settings default base directory: ", utils.RelWD(cwd))
 			settings.Directories.baseDirectory = cwd
 		} else {
-			log.Trace("Settings default directory base: ", utils.RelWD(baseDirectory), ", creating.")
+			log.Trace("Settings default base directory: ", utils.RelWD(baseDirectory))
 			settings.Directories.baseDirectory = baseDirectory
 		}
 	}
@@ -101,35 +101,35 @@ func (settings *Settings) Validate() error {
 		}
 	}
 
-	if settings.Directories.Overlays == "" {
-		return fmt.Errorf("overlays directory not set")
+	if settings.Directories.Clusters == "" {
+		return fmt.Errorf("clusters directory unset")
 	} else {
-		exist, err := utils.IsDir(settings.pathOverlays())
+		exist, err := utils.IsDir(settings.pathClusters())
 		if !exist || err != nil {
-			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.pathOverlays()))
-			err = os.MkdirAll(settings.pathOverlays(), 0777)
+			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.pathClusters()))
+			err = os.MkdirAll(settings.pathClusters(), 0777)
 			if err != nil {
 				return fmt.Errorf("overlays directory cannot be created: %w", err)
 			}
 		}
 	}
 
-	if settings.Directories.Sources == "" {
-		return fmt.Errorf("sources directory not set")
+	if settings.Directories.Templates == "" {
+		return fmt.Errorf("templates directory unset")
 	} else {
-		exist, err := utils.IsDir(settings.pathSources())
+		exist, err := utils.IsDir(settings.pathTemplates())
 		if !exist || err != nil {
-			return fmt.Errorf("sources directory does not exist: %w", err)
+			return fmt.Errorf("templates directory does not exist: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (settings *Settings) pathOverlays() string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Overlays)
+func (settings *Settings) pathClusters() string {
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Clusters)
 }
 
-func (settings *Settings) pathSources() string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Sources)
+func (settings *Settings) pathTemplates() string {
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Templates)
 }

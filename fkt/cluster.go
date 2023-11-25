@@ -12,10 +12,10 @@ import (
 )
 
 type Cluster struct {
-	Annotations map[string]string  `yaml:"annotations"`
-	Managed     *bool              `yaml:"managed"`
-	Values      *Values            `yaml:"values,flow"`
-	Sources     map[string]*Source `yaml:"sources"`
+	Annotations map[string]string    `yaml:"annotations"`
+	Managed     *bool                `yaml:"managed"`
+	Values      *Values              `yaml:"values,flow"`
+	Resources   map[string]*Resource `yaml:"resources,flow"`
 	path        string
 }
 
@@ -55,8 +55,8 @@ func (c *Cluster) load(path string) {
 	log.Debug("Cluster Values: ", *c.Values)
 }
 
-func (c *Cluster) pathOverlays(settings *Settings) string {
-	return filepath.Join(settings.pathOverlays(), c.path)
+func (c *Cluster) pathClusters(settings *Settings) string {
+	return filepath.Join(settings.pathClusters(), c.path)
 }
 
 func (c *Cluster) process(settings *Settings, globalValues *Values) error {
@@ -65,74 +65,74 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 		c.Values = &Values{}
 	}
 
-	err := utils.MkDir(c.pathOverlays(settings), settings.DryRun)
+	err := utils.MkDir(c.pathClusters(settings), settings.DryRun)
 	if err != nil {
 		return err
 	}
 
-	processedSources := []string{}
+	processedResources := []string{}
 
-	for sourceName, source := range c.Sources {
-		if source == nil {
-			source = &Source{}
+	for resourceName, resource := range c.Resources {
+		if resource == nil {
+			resource = &Resource{}
 		}
-		source.load(sourceName)
+		resource.load(resourceName)
 
-		processedSources = append(processedSources, sourceName)
+		processedResources = append(processedResources, resourceName)
 
-		if !*source.Managed {
-			log.Info("Skipping unmanaged source: ", sourceName)
+		if !*resource.Managed {
+			log.Info("Skipping unmanaged resource: ", resourceName)
 			continue
 		}
 
-		log.Info("Processing Source: ", *source.Origin, ", into ", c.path, "/", sourceName)
+		log.Info("Processing resource template: ", *resource.Template, ", into ", c.path, "/", resourceName)
 
 		values := make(Values)
 		values["Cluster"] = c.config()
-		values["Source"] = source.config()
-		values["Values"] = ProcessValues(globalValues, c.Values, &source.Values)
+		values["Resource"] = resource.config()
+		values["Values"] = ProcessValues(globalValues, c.Values, &resource.Values)
 		log.Trace("Values: ", values)
 
-		err := source.process(settings, values, c.path)
+		err := resource.process(settings, values, c.path)
 		if err != nil {
-			return fmt.Errorf("cannot process source: %s; %w", source.Name, err)
+			return fmt.Errorf("cannot process resource: %s; %w", resource.Name, err)
 		}
 	}
 
-	sourceEntries, err := os.ReadDir(c.pathOverlays(settings))
+	resourceEntries, err := os.ReadDir(c.pathClusters(settings))
 	if err != nil {
-		return fmt.Errorf("cannot get listing of sources in cluster path: %s; %w", c.pathOverlays(settings), err)
+		return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(settings), err)
 	}
 
-	removableSourcePaths := []string{}
+	removableResourcePaths := []string{}
 
-	for _, sourceEntry := range sourceEntries {
-		sourceEntryName := sourceEntry.Name()
-		sourcePath := filepath.Join(c.pathOverlays(settings), sourceEntryName)
+	for _, resourceEntry := range resourceEntries {
+		resourceEntryName := resourceEntry.Name()
+		resourcePath := filepath.Join(c.pathClusters(settings), resourceEntryName)
 
-		log.Debug("Checking source ", sourceEntryName, ", path ", sourcePath)
+		log.Debug("Checking resource ", resourceEntryName, ", path ", resourcePath)
 
-		exists, err := utils.IsDir(sourcePath)
+		exists, err := utils.IsDir(resourcePath)
 		if settings.DryRun {
 			if exists {
-				return fmt.Errorf("%s exists when it should not", sourcePath)
+				return fmt.Errorf("%s exists when it should not", resourcePath)
 			} else {
 				return nil
 			}
 		}
 		if !os.IsExist(err) {
-			if !slices.Contains(processedSources, sourceEntryName) {
-				removableSourcePaths = append(removableSourcePaths, sourcePath)
+			if !slices.Contains(processedResources, resourceEntryName) {
+				removableResourcePaths = append(removableResourcePaths, resourcePath)
 			}
 		}
 	}
 
 	if *c.Managed {
-		log.Debug("Removing unnecessary source destination paths: ", removableSourcePaths)
-		for _, removableSourcePath := range removableSourcePaths {
-			err := os.RemoveAll(removableSourcePath)
+		log.Debug("Removing unnecessary resource destination paths: ", removableResourcePaths)
+		for _, removableResourcePath := range removableResourcePaths {
+			err := os.RemoveAll(removableResourcePath)
 			if err != nil {
-				return fmt.Errorf("could not remove unnecessary source destination path: %s; %w", removableSourcePath, err)
+				return fmt.Errorf("could not remove unnecessary resource destination path: %s; %w", removableResourcePath, err)
 			}
 		}
 
@@ -153,15 +153,15 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 func (c *Cluster) validate(settings *Settings) error {
 	log.Info("Validating cluster: ", c.path)
 
-	for name, source := range c.Sources {
-		log.Debug("Validating source: ", name)
+	for name, resource := range c.Resources {
+		log.Debug("Validating resource: ", name)
 
-		if source == nil {
-			source = &Source{}
+		if resource == nil {
+			resource = &Resource{}
 		}
-		source.load(name)
+		resource.load(name)
 
-		err := source.validate(settings, name)
+		err := resource.validate(settings, name)
 		if err != nil {
 			return err
 		}

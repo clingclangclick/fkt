@@ -28,8 +28,8 @@ Flags:
 ---
 settings:
   directories:
-    sources: sources           # path containing sources
-    overlays: overlays         # path to place templated files
+    templates: templates       # path containing resource templates
+    clusters: clusters         # cluster resource output parents path
   delimiters:
     left: '[[['                # custom left delimiter
     right: ']]]'               # custom right delimiter
@@ -48,10 +48,10 @@ values:                        # global values
     - global_slice_two
 clusters:
   path:                        # cluster path
-    annotations:               # annotations for cluster, added into kustomize file, templated as `Cluster.annotations`
-      key: value               # cluster k/v annotation example, templated as `Cluster.annotations.key`
+    annotations:               # annotations for cluster, added into kustomize file, available as `.Cluster.annotations`
+      key: value               # cluster k/v annotation example, available as `.Cluster.annotations.key`
       name: name               # annotation name defaults to path stem if unset
-    managed: true              # prune cluster output directory, manage top-level kustomize.yaml file, templated as `Cluster.managed`
+    managed: true              # prune cluster output directory, manage top-level kustomize.yaml file, available as `.Cluster.managed`
     values:                    # cluster level values, supercedes global values
       cluster_key: cluster_value
       cluster_array_keys:
@@ -59,16 +59,16 @@ clusters:
       cluster_slices:
         - cluster_slice_one
         - cluster_slice_two
-    sources:                  # sources to include for cluster
-      example:                # source path within `directories.sources`
-        origin: ex            # overlay origin name, default is source path, accessed as `.Source.origin`
-        managed: true         # managed source, will not remove overlay if cluster is managed and source non-existent
-        namespace: example    # optional namespace, default to `default`, accessed as `.Source.namespace`
+    resurces:                 # resources to include in cluster output
+      example:                # resource name
+        template: ex          # resource template name, default is resource name, accessed as `.Reource.template`
+        managed: true         # managed reource, will not remove overlay if cluster is managed and resource non-existent
+        namespace: example    # optional namespace, default to resource name, accessed as `.Resource.namespace`
         values:               # values, overrides cluster and global leval, accessed as `.Values.<map name>`
           data: test-date     #  `.Values.data`
 ```
 
-With a `sources/example/cm.yaml` file
+With a `templates/example/cm.yaml` file
 
 ```yaml
 apiVersion: v1
@@ -85,15 +85,15 @@ Cluster paths are unique within the `clusters` mapping.
 
 ### Managed cluster
 
-A managed cluster resets the cluster directory when ran, EXCEPT if source is unmanaged,
-i.e. `<source>.Managed` is `false`. In this case, the unmanaged source path for the cluster
+A managed cluster resets the cluster directory when ran, EXCEPT if resource is unmanaged,
+i.e. `<reource>.Managed` is `false`. In this case, the unmanaged resource path for the cluster
 is:
 
 * Not removed
 * If a `kustomization.yaml` or `kustomization.yml` exists, the cluster `kustomization.yaml`
-  will include the unmanaged source.
+  will include the unmanaged resource.
 
-Managed source functionality is used to support FluxCD cluster bootstrap in a managed cluster.
+Managed resource functionality is used to support FluxCD cluster bootstrap in a managed cluster.
 
 ## Values
 
@@ -104,7 +104,7 @@ Evaluation order:
 
 * Global
 * Cluster
-* Source
+* Reource
 
 ### Sprig templating functions
 
@@ -214,15 +214,15 @@ Properties:
 * `managed`: managed boolean
 * `path`: cluster path
 
-### Source values
+### Reource values
 
-Access as `.Source.<property>`
+Access as `.Resource.<property>`
 
 Properties:
 
-* `name`: Source name
-* `namespace`: Source namespace
-* `origin`: Source origin, allows for re-using sources
+* `name`: Resource name
+* `namespace`: Resource namespace
+* `template`: Resource template path, allows for re-using sources
 
 ## Bootstrapping FluxCD
 
@@ -234,10 +234,10 @@ Include a `flux-system` anchor in the YAML configuration
       managed: false
 ```
 
-Add the anchor to the cluster sources property:
+Add the anchor to the cluster resources property:
 
 ```yaml
-    sources:
+    resources:
       <<: [*flux-system]
 ```
 
@@ -270,8 +270,8 @@ type Settings struct {
     Right string `yaml:"right"`
   } `yaml:"delimiters"`
   Directories struct {
-    Sources       string `yaml:"sources"`
-    Overlays      string `yaml:"overlays"`
+    Templates     string `yaml:"templates"`
+    Clusters      string `yaml:"clusters"`
     baseDirectory string
   } `yaml:"directories"`
   DryRun    bool       `yaml:"dry_run"`
@@ -293,19 +293,19 @@ type LogConfig struct {
 
 ```golang
 type Cluster struct {
-  Annotations map[string]string  `yaml:"annotations"`
-  Managed     *bool              `yaml:"managed"`
-  Values      *Values            `yaml:"values,flow"`
-  Sources     map[string]*Source `yaml:"sources"`
+  Annotations map[string]string    `yaml:"annotations"`
+  Managed     *bool                `yaml:"managed"`
+  Values      *Values              `yaml:"values,flow"`
+  Resources   map[string]*Resource `yaml:"resources"`
   path        string
 }
 ```
 
-### Source type
+### Resource type
 
 ```golang
-type Source struct {
-  Origin    *string `yaml:"origin"`
+type Resource struct {
+  Template  *string `yaml:"template"`
   Namespace *string `yaml:"namespace"`
   Values    Values  `yaml:"values,flow"`
   Managed   *bool   `yaml:"managed"`

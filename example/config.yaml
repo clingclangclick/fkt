@@ -1,8 +1,8 @@
 ---
 settings:
   directories:
-    sources: sources
-    overlays: overlays
+    templates: templates
+    clusters: clusters
   delimiters:
     left: '[[['
     right: ']]]'
@@ -17,11 +17,11 @@ anchors:
     configmaps:
       values:
         source_key: configmaps-source_value
-    configmaps-x:
-      namespace: configmaps-x
-      origin: configmaps
+    configmaps-example:
+      namespace: configmaps-example
+      template: configmaps
       values:
-        source_key: configmaps-x_source_value
+        source_key: configmaps-example_source_value
 values:
   global_key: global_value
   global_array_keys:
@@ -38,7 +38,7 @@ clusters:
       platform: platform
       name: name
       region: region
-    sources:
+    resources:
       <<: [*configmaps]
   platform/unmanaged:
     annotations:
@@ -80,5 +80,5 @@ clusters:
       cluster_slices:
         - cluster_slice_one
         - cluster_slice_two
-    sources:
+    resources:
       <<: [*flux-system, *configmaps]
