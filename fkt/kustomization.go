@@ -18,9 +18,9 @@ type Kustomization struct {
 }
 
 type kustomization struct {
+	CommonAnnotations map[string]string `yaml:"commonAnnotations"`
 	APIVersion        string            `yaml:"apiVersion"`
 	Kind              string            `yaml:"kind"`
-	CommonAnnotations map[string]string `yaml:"commonAnnotations"`
 	Resources         []string          `yaml:"resources"`
 }
 

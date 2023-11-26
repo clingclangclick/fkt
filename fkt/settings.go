@@ -18,6 +18,8 @@ var settingsDefaults = map[string]string{
 }
 
 type Settings struct {
+	DryRun     bool       `yaml:"dry_run"`
+	LogConfig  *LogConfig `yaml:"log"`
 	Delimiters struct {
 		Left  string `yaml:"left"`
 		Right string `yaml:"right"`
@@ -27,8 +29,6 @@ type Settings struct {
 		Clusters      string `yaml:"clusters"`
 		baseDirectory string
 	} `yaml:"directories"`
-	DryRun    bool       `yaml:"dry_run"`
-	LogConfig *LogConfig `yaml:"log"`
 }
 
 func (settings *Settings) Defaults(

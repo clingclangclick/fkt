@@ -16,7 +16,7 @@ type Cluster struct {
 	Managed     *bool                `yaml:"managed"`
 	Values      *Values              `yaml:"values,flow"`
 	Resources   map[string]*Resource `yaml:"resources,flow"`
-	path        string
+	path        *string
 }
 
 func (c *Cluster) config() Values {
@@ -30,7 +30,7 @@ func (c *Cluster) config() Values {
 }
 
 func (c *Cluster) load(path string) {
-	c.path = path
+	c.path = &path
 
 	if c.Annotations == nil {
 		log.Trace("Cluster ", c.path, " has no annotations")
@@ -56,7 +56,7 @@ func (c *Cluster) load(path string) {
 }
 
 func (c *Cluster) pathClusters(settings *Settings) string {
-	return filepath.Join(settings.pathClusters(), c.path)
+	return filepath.Join(settings.pathClusters(), *c.path)
 }
 
 func (c *Cluster) process(settings *Settings, globalValues *Values) error {
@@ -93,7 +93,7 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 		values["Values"] = ProcessValues(globalValues, c.Values, &resource.Values)
 		log.Trace("Values: ", values)
 
-		err := resource.process(settings, values, c.path)
+		err := resource.process(settings, values, *c.path)
 		if err != nil {
 			return fmt.Errorf("cannot process resource: %s; %w", resource.Name, err)
 		}
