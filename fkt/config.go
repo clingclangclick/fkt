@@ -15,6 +15,10 @@ type Config struct {
 	Settings *Settings           `yaml:"settings"`
 	Values   Values              `yaml:"values,flow"`
 	Clusters map[string]*Cluster `yaml:"clusters"`
+	Secrets  struct {
+		SecretsFile string `yaml:"file"`
+		secrets     Secrets
+	} `yaml:"secrets"`
 }
 
 func LoadConfig(configurationFile string) (*Config, error) {
@@ -38,7 +42,7 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	return &config, err
 }
 
-func (config *Config) Process(settings *Settings) error {
+func (config *Config) Process() error {
 	log.Info("Processing configuration...")
 
 	var eg = new(errgroup.Group)
@@ -50,11 +54,11 @@ func (config *Config) Process(settings *Settings) error {
 		c := cluster
 		c.load(path)
 
-		func(settings *Settings, c *Cluster) {
+		func(c *Cluster) {
 			eg.Go(func() error {
-				return c.process(settings, &config.Values)
+				return c.process(config)
 			})
-		}(settings, c)
+		}(c)
 	}
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("processing failed: %w", err)
@@ -63,7 +67,7 @@ func (config *Config) Process(settings *Settings) error {
 	return nil
 }
 
-func (config *Config) Validate(settings *Settings) error {
+func (config *Config) Validate() error {
 	log.Info("Validating configuration...")
 
 	var eg = new(errgroup.Group)
@@ -75,11 +79,11 @@ func (config *Config) Validate(settings *Settings) error {
 		c := cluster
 		c.load(path)
 
-		func(settings *Settings, c *Cluster) {
+		func(c *Cluster) {
 			eg.Go(func() error {
-				return c.validate(settings)
+				return c.validate(config)
 			})
-		}(settings, c)
+		}(c)
 	}
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("validation failed: %w", err)

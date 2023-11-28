@@ -82,29 +82,6 @@ func IsExist(path string) bool {
 	return !errors.Is(err, os.ErrNotExist)
 }
 
-func ContainsKustomization(path string) bool {
-	log.Debug("Checking for kustomization.yaml at: ", path)
-	kustomizations := []string{
-		"kustomization",
-		"Kustomization",
-		"kustomization.yaml",
-		"Kustomization.yaml",
-		"kustomization.yml",
-		"Kustomization.yml",
-	}
-
-	for _, kustomization := range kustomizations {
-		ft, err := IsFile(filepath.Join(path, kustomization))
-		if ft && err == nil {
-			log.Trace("Found one of ", kustomizations, " in ", path)
-			return true
-		}
-	}
-
-	log.Trace("Did not find kustomizations in ", path)
-	return false
-}
-
 func RmDir(path string, protected []string, dryRun bool) error {
 	log.Debug("RmDir (dry run: ", dryRun, "): ", RelWD(path))
 
