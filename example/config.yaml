@@ -9,8 +9,8 @@ settings:
   log:
     level: debug
     format: json
-secrets:
-  file: secrets.yaml
+# secrets:
+#   file: secrets.yaml
 anchors:
   flux-system: &flux-system
     flux-system:
