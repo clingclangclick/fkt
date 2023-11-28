@@ -4,5 +4,13 @@ metadata:
   name: [[[ .Resource.name ]]]
   namespace: [[[ .Resource.namespace ]]]
 data:
-  name: [[[ .Cluster.annotations.name ]]]
+  name: [[[ .Values.key ]]]
   template: [[[ .Resource.template ]]]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: [[[ .Resource.name ]]]
+  namespace: [[[ .Resource.namespace ]]]
+data:
+  secret: [[[ .Secrets.secret | b64enc ]]]
