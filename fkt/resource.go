@@ -65,7 +65,7 @@ func (r *Resource) pathTemplates(settings *Settings) string {
 	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Templates, *r.Template)
 }
 
-func (r *Resource) process(settings *Settings, values Values, clusterPath string, subPaths ...string) error {
+func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, clusterPath string, subPaths ...string) error {
 	subPath := ""
 
 	if len(subPaths) > 0 {
@@ -95,8 +95,8 @@ func (r *Resource) process(settings *Settings, values Values, clusterPath string
 		return fmt.Errorf("is not a directory: %s; %w", templatePath, err)
 	}
 
-	if !utils.ContainsKustomization(templatePath) {
-		return fmt.Errorf("kustomization file does not exist in: %s; %w", templatePath, err)
+	if !r.containsKustomization(settings) {
+		return fmt.Errorf("kustomization file does not exist in: %s", templatePath)
 	}
 
 	if !de {
@@ -129,12 +129,12 @@ func (r *Resource) process(settings *Settings, values Values, clusterPath string
 		}
 		if !dt {
 			destinationEntryPath := filepath.Join(clusterResourcePath, entry)
-			err := values.template(resourceEntryPath, destinationEntryPath, settings)
+			err := values.template(resourceEntryPath, destinationEntryPath, settings, secrets)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = r.process(settings, values, clusterPath, resourceEntryPath)
+			err = r.process(settings, values, secrets, clusterPath, resourceEntryPath)
 			if err != nil {
 				return err
 			}
@@ -152,10 +152,32 @@ func (r *Resource) validate(settings *Settings, name string) error {
 			return fmt.Errorf("resource template path validation failed for: %s; %w", name, err)
 		}
 
-		if !utils.ContainsKustomization(path) {
+		if !r.containsKustomization(settings) {
 			return fmt.Errorf("kustomization file does not exist in: %s; %w", utils.RelWD(path), err)
 		}
 	}
 
 	return nil
+}
+
+func (r *Resource) containsKustomization(settings *Settings) bool {
+	path := r.pathTemplates(settings)
+	log.Debug("Checking for kustomization.yaml at: ", path)
+	kustomizations := []string{
+		"Kustomization",
+		"kustomization.yaml",
+		"kustomization.yml",
+	}
+
+	for _, kustomization := range kustomizations {
+		kustomizationFile := filepath.Join(path, kustomization)
+		ft, err := utils.IsFile(kustomizationFile)
+		if ft && err == nil {
+			log.Debug("Found ", utils.RelWD(kustomizationFile))
+			return true
+		}
+	}
+
+	log.Trace("No kustomizations in ", path)
+	return false
 }

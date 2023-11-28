@@ -5,6 +5,7 @@ race test validate: export LOG_LEVEL=trace
 race test validate: export LOG_FORMAT=console
 race test validate: export BASE_DIRECTORY=$(CURDIR)/example
 race test validate: export CONFIG_FILE=$(CURDIR)/example/config.yaml
+race test validate: export SOPS_AGE_KEY_FILE=$(BASE_DIRECTORY)/.sops.agekey
 race: export GORACE="history_size=8"
 race: export BIN=go run -race .
 test: export BIN=.bin/fkt
