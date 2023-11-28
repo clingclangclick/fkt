@@ -170,10 +170,16 @@ func encrypt(yamlString string, ageKey string) ([]byte, error) {
 		return encrypted, err
 	}
 
+	errs := make(chan error, 1)
 	go func() {
 		defer stdin.Close()
-		io.WriteString(stdin, yamlString)
+		_, err := io.WriteString(stdin, yamlString)
+		errs <- err
 	}()
+
+	if err := <-errs; err != nil {
+		return encrypted, err
+	}
 
 	encrypted, _ = cmd.Output()
 	if err != nil {
