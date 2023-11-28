@@ -2,3 +2,5 @@
 example/**
 !example/**/.gitignore
 !example/templates
+!example/config.yaml
+!example/secrets.yaml

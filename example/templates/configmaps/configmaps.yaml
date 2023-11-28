@@ -4,5 +4,5 @@ metadata:
   name: [[[ .Resource.name ]]]
   namespace: [[[ .Resource.namespace ]]]
 data:
-  name: [[[ .Cluster.annotations.name ]]]
+  name: [[[ .Values.key ]]]
   template: [[[ .Resource.template ]]]

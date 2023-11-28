@@ -13,10 +13,10 @@ import (
 )
 
 var CLI struct {
-	ConfigFile    string `type:"existingfile" short:"f" help:"YAML configuration file" env:"CONFIG_FILE"`
-	BaseDirectory string `type:"existingdirectory" short:"b" help:"Sources and overlays base directory" env:"BASE_DIRECTORY" default:"${base_directory}"`
 	DryRun        bool   `short:"d" help:"Dry run and return error if changes are needed" env:"DRY_RUN" default:"false"`
 	Validate      bool   `short:"v" help:"Validate configuration" env:"VALIDATE" default:"false"`
+	ConfigFile    string `type:"existingfile" short:"f" help:"YAML configuration file" env:"CONFIG_FILE"`
+	BaseDirectory string `type:"existingdirectory" short:"b" help:"Sources and overlays base directory" env:"BASE_DIRECTORY" default:"${base_directory}"`
 	Logging       struct {
 		Level  string `enum:"default,none,trace,debug,info,warn,error" short:"l" help:"Log level" env:"LOG_LEVEL" default:"${logging_level}"`
 		File   string `type:"path" short:"o" help:"Log file" env:"LOG_FILE"`
@@ -72,7 +72,7 @@ func main() {
 		ctx.Exit(1)
 	}
 
-	log.Debug("Configuration file: ", CLI.ConfigFile)
+	log.Debug("Loaded configuration file: ", CLI.ConfigFile)
 
 	settings := config.Settings
 
@@ -82,14 +82,14 @@ func main() {
 		ctx.Exit(1)
 	}
 
-	err = config.Validate(settings)
+	err = config.Validate()
 	if err != nil {
 		log.Error("Error validating configuration: ", CLI.ConfigFile, " (", err, ")")
 		ctx.Exit(1)
 	}
 
 	if !CLI.Validate {
-		err = config.Process(settings)
+		err = config.Process()
 		if err != nil {
 			log.Error("Error processing configuration: ", CLI.ConfigFile, " (", err, ")")
 			ctx.Exit(1)

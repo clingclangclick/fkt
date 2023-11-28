@@ -12,17 +12,18 @@ import (
 )
 
 type Cluster struct {
-	Annotations map[string]string    `yaml:"annotations"`
-	Managed     *bool                `yaml:"managed"`
-	Values      *Values              `yaml:"values,flow"`
-	Resources   map[string]*Resource `yaml:"resources,flow"`
-	path        *string
+	Annotations  map[string]string    `yaml:"annotations"`
+	Managed      *bool                `yaml:"managed"`
+	Values       *Values              `yaml:"values,flow"`
+	Resources    map[string]*Resource `yaml:"resources,flow"`
+	AgePublicKey string               `yaml:"age_public_key"`
+	path         *string
 }
 
 func (c *Cluster) config() Values {
 	config := make(Values)
 
-	config["path"] = c.path
+	config["path"] = *c.path
 	config["annotations"] = c.Annotations
 	config["managed"] = c.Managed
 
@@ -33,7 +34,7 @@ func (c *Cluster) load(path string) {
 	c.path = &path
 
 	if c.Annotations == nil {
-		log.Trace("Cluster ", c.path, " has no annotations")
+		log.Trace("Cluster ", *c.path, " has no annotations")
 		c.Annotations = make(map[string]string)
 	}
 
@@ -59,20 +60,33 @@ func (c *Cluster) pathClusters(settings *Settings) string {
 	return filepath.Join(settings.pathClusters(), *c.path)
 }
 
-func (c *Cluster) process(settings *Settings, globalValues *Values) error {
+func (c *Cluster) process(config *Config) error {
+	log.Info("Processing cluster: ", *c.path)
 	if c.Values == nil {
-		log.Trace("Cluster ", c.path, " has no values")
+		log.Trace("Cluster ", *c.path, " has no values")
 		c.Values = &Values{}
 	}
 
-	err := utils.MkDir(c.pathClusters(settings), settings.DryRun)
+	secrets := Secrets{
+		ageKey: c.AgePublicKey,
+	}
+	if config.Secrets.SecretsFile != "" && secrets.ageKey != "" {
+		err := secrets.read(filepath.Join(config.Settings.Directories.baseDirectory, config.Secrets.SecretsFile))
+		if err != nil {
+			return err
+		}
+	}
+
+	err := utils.MkDir(c.pathClusters(config.Settings), config.Settings.DryRun)
 	if err != nil {
 		return err
 	}
 
 	processedResources := []string{}
 
+	log.Info("Processing resources")
 	for resourceName, resource := range c.Resources {
+		log.Info("Attaching resource: ", resourceName, " to ", *c.path)
 		if resource == nil {
 			resource = &Resource{}
 		}
@@ -85,35 +99,35 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 			continue
 		}
 
-		log.Info("Processing resource template: ", *resource.Template, ", into ", c.path, "/", resourceName)
+		log.Info("Processing resource template: ", *resource.Template, ", into ", *c.path, "/", resourceName)
 
 		values := make(Values)
 		values["Cluster"] = c.config()
 		values["Resource"] = resource.config()
-		values["Values"] = ProcessValues(globalValues, c.Values, &resource.Values)
+		values["Values"] = ProcessValues(&config.Values, c.Values, &resource.Values)
 		log.Trace("Values: ", values)
 
-		err := resource.process(settings, values, *c.path)
+		err := resource.process(config.Settings, values, &secrets, *c.path)
 		if err != nil {
 			return fmt.Errorf("cannot process resource: %s; %w", resource.Name, err)
 		}
 	}
 
-	resourceEntries, err := os.ReadDir(c.pathClusters(settings))
+	resourceEntries, err := os.ReadDir(c.pathClusters(config.Settings))
 	if err != nil {
-		return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(settings), err)
+		return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(config.Settings), err)
 	}
 
 	removableResourcePaths := []string{}
 
 	for _, resourceEntry := range resourceEntries {
 		resourceEntryName := resourceEntry.Name()
-		resourcePath := filepath.Join(c.pathClusters(settings), resourceEntryName)
+		resourcePath := filepath.Join(c.pathClusters(config.Settings), resourceEntryName)
 
 		log.Debug("Checking resource ", resourceEntryName, ", path ", resourcePath)
 
 		exists, err := utils.IsDir(resourcePath)
-		if settings.DryRun {
+		if config.Settings.DryRun {
 			if exists {
 				return fmt.Errorf("%s exists when it should not", resourcePath)
 			} else {
@@ -136,12 +150,12 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 			}
 		}
 
-		log.Debug("Generating kustomization for cluster: ", c.path)
+		log.Debug("Generating kustomization for cluster: ", *c.path)
 		kustomization := &Kustomization{
 			Cluster: c,
 		}
 
-		err := kustomization.generate(settings, c.Annotations, settings.DryRun)
+		err := kustomization.generate(config.Settings, c.Annotations, config.Settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
@@ -150,8 +164,8 @@ func (c *Cluster) process(settings *Settings, globalValues *Values) error {
 	return nil
 }
 
-func (c *Cluster) validate(settings *Settings) error {
-	log.Info("Validating cluster: ", c.path)
+func (c *Cluster) validate(config *Config) error {
+	log.Info("Validating cluster: ", *c.path)
 
 	for name, resource := range c.Resources {
 		log.Debug("Validating resource: ", name)
@@ -161,7 +175,7 @@ func (c *Cluster) validate(settings *Settings) error {
 		}
 		resource.load(name)
 
-		err := resource.validate(settings, name)
+		err := resource.validate(config.Settings, name)
 		if err != nil {
 			return err
 		}

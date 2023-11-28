@@ -101,16 +101,17 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if found {
 			continue
 		}
-		de, err := utils.IsDir(filepath.Join(clusterPath, entry))
-		if err != nil {
-			return []string{}, err
-		}
-		if de {
-			if utils.ContainsKustomization(filepath.Join(clusterPath, entry)) {
-				resources = append(resources, entry)
-			}
-		}
+		resources = append(resources, entry)
+		// de, err := utils.IsDir(filepath.Join(clusterPath, entry))
+		// if err != nil {
+		// 	return []string{}, err
+		// }
+		// if de {
+		// 	if utils.ContainsKustomization(filepath.Join(clusterPath, entry)) {
+		// 		resources = append(resources, entry)
+		// 	}
+		// }
 	}
 
-	return resources, nil
+	return entries, nil
 }

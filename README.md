@@ -224,6 +224,47 @@ Properties:
 * `namespace`: Resource namespace
 * `template`: Resource template path, allows for re-using sources
 
+## Secrets
+
+Simple support for SOPS age encrypted secrets is supported. Using the configuration:
+
+```yaml
+secrets:
+  file: secrets.yaml
+```
+
+An age-encrypted SOPS file `secrets.yaml` is decoded and added to a `Secrets` value for
+templating K8S templates with `Kind: Secret`. Clusters are assigned an age public key:
+
+```yaml
+clusters:
+  <cluster>:
+    age_public_key: <public key>
+```
+
+The environmental variable SOPS_AGE_KEY_FILE or SOPS_AGE_KEY must be set or the secrets
+file cannot be decrypted and `fkt` will error out if a secrets file is supplied
+in the configuration.
+
+Secrets are available in `Secret` K8S template files as `.Secret`, so that a `secrets.yaml`
+file:
+
+```yaml
+secret: value
+```
+
+The value of `secret` is called `.Secrets.secret`. The value should be base64 encoded:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: [[[ .Resource.name ]]]
+  namespace: [[[ .Resource.namespace ]]]
+data:
+  secret: [[[ .Secrets.secret | b64enc ]]]
+```
+
 ## Bootstrapping FluxCD
 
 Include a `flux-system` anchor in the YAML configuration
@@ -258,6 +299,10 @@ type Config struct {
   Settings *Settings           `yaml:"settings"`
   Values   Values              `yaml:"values,flow"`
   Clusters map[string]*Cluster `yaml:"clusters"`
+  Secrets  struct {
+    SecretsFile string  `yaml:"file"`
+    secrets     Secrets
+  } `yaml:"secrets"`
 }
 ```
 
@@ -293,11 +338,12 @@ type LogConfig struct {
 
 ```golang
 type Cluster struct {
-  Annotations map[string]string    `yaml:"annotations"`
-  Managed     *bool                `yaml:"managed"`
-  Values      *Values              `yaml:"values,flow"`
-  Resources   map[string]*Resource `yaml:"resources"`
-  path        string
+  Annotations  map[string]string    `yaml:"annotations"`
+  Managed      *bool                `yaml:"managed"`
+  Values       *Values              `yaml:"values,flow"`
+  Resources    map[string]*Resource `yaml:"resources"`
+  AgePublicKey string               `yaml:"age_public_key"`
+  path         string
 }
 ```
 
