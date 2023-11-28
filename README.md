@@ -255,7 +255,15 @@ secret: value
 
 The value of `secret` is called `.Secrets.secret`. The value should be base64 encoded:
 
-`[[[ .Secrets.secret | b64enc ]]]`
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: [[[ .Resource.name ]]]
+  namespace: [[[ .Resource.namespace ]]]
+data:
+  secret: [[[ .Secrets.secret | b64enc ]]]
+```
 
 ## Bootstrapping FluxCD
 
