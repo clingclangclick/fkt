@@ -68,7 +68,6 @@ func (v *Values) template(sourcePath, destinationPath string, settings *Settings
 			if err != nil {
 				return err
 			}
-			log.Info(secrets)
 			if k8sYaml.Kind == "Secret" && secrets.ageKey != "" {
 				log.Info("Adding secrets to values for Secret k8s Kind")
 				(*v)["Secrets"] = secrets.values
