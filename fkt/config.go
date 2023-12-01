@@ -7,8 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
-
-	utils "github.com/clingclangclick/fkt/utils"
 )
 
 type Config struct {
@@ -42,8 +40,6 @@ func LoadConfig(configurationFile string) (*Config, error) {
 		config.Settings = &Settings{}
 	}
 	config.Settings.configFileModifiedTime = configurationFileInfo.ModTime()
-
-	log.Info("Loaded configuration: ", utils.RelWD(configurationFile))
 
 	return &config, err
 }
