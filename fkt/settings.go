@@ -106,10 +106,10 @@ func (settings *Settings) Validate() error {
 	} else {
 		exist, err := utils.IsDir(settings.pathClusters())
 		if !exist || err != nil {
-			log.Error("Overlays directory does not exist at ", utils.RelWD(settings.pathClusters()))
+			log.Error("Clusters directory does not exist at ", utils.RelWD(settings.pathClusters()))
 			err = os.MkdirAll(settings.pathClusters(), 0777)
 			if err != nil {
-				return fmt.Errorf("overlays directory cannot be created: %w", err)
+				return fmt.Errorf("clusters directory cannot be created: %w", err)
 			}
 		}
 	}
