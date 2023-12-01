@@ -12,6 +12,7 @@ import (
 	"text/template"
 
 	sprig "github.com/Masterminds/sprig/v3"
+	utils "github.com/clingclangclick/fkt/utils"
 	log "github.com/sirupsen/logrus"
 
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
@@ -37,15 +38,43 @@ func ProcessValues(values ...*Values) Values {
 	return v
 }
 
-func (v *Values) template(sourcePath, destinationPath string, settings *Settings, secrets *Secrets) error {
-	tfd, err := os.ReadFile(sourcePath)
+func (v *Values) template(templatePath, targetPath string, settings *Settings, secrets *Secrets) error {
+	templatePathInfo, err := os.Stat(templatePath)
 	if err != nil {
-		return fmt.Errorf("cannot read template file: %s; %w", sourcePath, err)
+		return err
+	}
+
+	targetPathIsFile, err := utils.IsFile(targetPath)
+	if targetPathIsFile && err == nil {
+		targetPathInfo, err := os.Stat(targetPath)
+		if err != nil {
+			return err
+		}
+		targetPathModified := targetPathInfo.ModTime()
+		if targetPathModified.After(templatePathInfo.ModTime()) && targetPathModified.After(settings.configFileModifiedTime) {
+			if secrets.lastModified != nil {
+				if targetPathModified.After(*secrets.lastModified) {
+					return nil
+				}
+			} else {
+				return nil
+			}
+		}
+
+		err = os.Remove(targetPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	tfd, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("cannot read template file: %s; %w", templatePath, err)
 	}
 
 	readAsYaml := false
 	for _, yamlExtension := range []string{".yaml", ".yml"} {
-		if strings.EqualFold(filepath.Ext(sourcePath), yamlExtension) {
+		if strings.EqualFold(filepath.Ext(templatePath), yamlExtension) {
 			readAsYaml = true
 		}
 	}
@@ -73,7 +102,7 @@ func (v *Values) template(sourcePath, destinationPath string, settings *Settings
 				(*v)["Secrets"] = secrets.values
 			}
 
-			tpl, err := v.execute(sourcePath, string(buf), settings.Delimiters.Left, settings.Delimiters.Right)
+			tpl, err := v.execute(templatePath, string(buf), settings.Delimiters.Left, settings.Delimiters.Right)
 			if err != nil {
 				return err
 			}
@@ -103,7 +132,7 @@ func (v *Values) template(sourcePath, destinationPath string, settings *Settings
 			multipleDocs = true
 		}
 	} else {
-		tpl, err := v.execute(sourcePath, string(tfd), settings.Delimiters.Left, settings.Delimiters.Right)
+		tpl, err := v.execute(templatePath, string(tfd), settings.Delimiters.Left, settings.Delimiters.Right)
 		if err != nil {
 			return err
 		}
@@ -113,9 +142,9 @@ func (v *Values) template(sourcePath, destinationPath string, settings *Settings
 		}
 	}
 
-	of, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_RDWR, 0666)
+	of, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		return fmt.Errorf("cannot write template to: %s; %w", destinationPath, err)
+		return fmt.Errorf("cannot write template to: %s; %w", targetPath, err)
 	}
 	defer of.Close()
 

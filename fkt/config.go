@@ -24,6 +24,11 @@ type Config struct {
 func LoadConfig(configurationFile string) (*Config, error) {
 	config := Config{}
 
+	configurationFileInfo, err := os.Stat(configurationFile)
+	if err != nil {
+		return &config, err
+	}
+
 	configurationBytes, err := os.ReadFile(configurationFile)
 	if err != nil {
 		return &config, err
@@ -36,6 +41,7 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	if config.Settings == nil {
 		config.Settings = &Settings{}
 	}
+	config.Settings.configFileModifiedTime = configurationFileInfo.ModTime()
 
 	log.Info("Loaded configuration: ", utils.RelWD(configurationFile))
 

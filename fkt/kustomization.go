@@ -35,15 +35,15 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 		return nil
 	}
 
-	destinationPath := k.Cluster.pathClusters(settings)
+	targetPath := k.Cluster.pathClusters(settings)
 
 	log.Info("Generating kustomization for: ", resources)
-	isDir, err := utils.IsDir(destinationPath)
+	isDir, err := utils.IsDir(targetPath)
 	if err != nil {
 		return fmt.Errorf("error determinig directory: %w", err)
 	}
 	if !isDir {
-		return fmt.Errorf("path is not directory: %s", destinationPath)
+		return fmt.Errorf("path is not directory: %s", targetPath)
 	}
 
 	kustomizationYAML, err := yaml.Marshal(&kustomization{
@@ -57,7 +57,7 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 	}
 	kustomizationYAML = []byte(fmt.Sprintf("---\n%s", kustomizationYAML))
 
-	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
+	kustomizationFile := filepath.Join(targetPath, "kustomization.yaml")
 	if !dryRun {
 		err = utils.WriteFile(kustomizationFile, kustomizationYAML, uint32(0666), dryRun)
 		if err != nil {

@@ -68,7 +68,8 @@ func (c *Cluster) process(config *Config) error {
 	}
 
 	secrets := Secrets{
-		ageKey: c.AgePublicKey,
+		ageKey:       c.AgePublicKey,
+		lastModified: nil,
 	}
 	if config.Secrets.SecretsFile != "" && secrets.ageKey != "" {
 		err := secrets.read(filepath.Join(config.Settings.Directories.baseDirectory, config.Secrets.SecretsFile))
@@ -142,11 +143,11 @@ func (c *Cluster) process(config *Config) error {
 	}
 
 	if *c.Managed {
-		log.Debug("Removing unnecessary resource destination paths: ", removableResourcePaths)
+		log.Debug("Removing unnecessary resource target paths: ", removableResourcePaths)
 		for _, removableResourcePath := range removableResourcePaths {
 			err := os.RemoveAll(removableResourcePath)
 			if err != nil {
-				return fmt.Errorf("could not remove unnecessary resource destination path: %s; %w", removableResourcePath, err)
+				return fmt.Errorf("could not remove unnecessary resource target path: %s; %w", removableResourcePath, err)
 			}
 		}
 

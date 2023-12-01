@@ -67,7 +67,6 @@ func (r *Resource) pathTemplates(settings *Settings) string {
 
 func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, clusterPath string, subPaths ...string) error {
 	subPath := ""
-
 	if len(subPaths) > 0 {
 		subPathSlice := []string{}
 		subPathSlice = append(subPathSlice, subPaths...)
@@ -77,46 +76,42 @@ func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, 
 	templatePath := filepath.Join(r.pathTemplates(settings), subPath)
 	log.Debug("Template path: ", utils.RelWD(templatePath))
 
-	clusterResourcePath := filepath.Join(r.pathCluster(settings, clusterPath), subPath)
-	log.Debug("Cluster resource path: ", utils.RelWD(clusterResourcePath))
-
-	err := utils.MkCleanDir(clusterResourcePath, []string{}, settings.DryRun)
-	if err != nil {
-		return err
-	}
-
 	if !*r.Managed {
 		log.Info("Unmanaged, skipping templating")
 		return nil
 	}
 
-	de, err := utils.IsDir(templatePath)
+	templatePathExists, err := utils.IsDir(templatePath)
 	if err != nil {
 		return fmt.Errorf("is not a directory: %s; %w", templatePath, err)
 	}
-
-	if !r.containsKustomization(settings) {
-		return fmt.Errorf("kustomization file does not exist in: %s", templatePath)
-	}
-
-	if !de {
+	if !templatePathExists {
 		return fmt.Errorf("template(%s) not a directory", templatePath)
 	}
-	de, _ = utils.IsDir(clusterResourcePath)
-	if !de {
-		err := utils.MkCleanDir(clusterResourcePath, []string{}, settings.DryRun)
+
+	if !r.containsKustomization(settings) {
+		log.Warn("kustomization file does not exist in: ", templatePath)
+		return nil
+	}
+
+	clusterResourcePath := filepath.Join(r.pathCluster(settings, clusterPath), subPath)
+	log.Debug("Cluster resource path: ", utils.RelWD(clusterResourcePath))
+
+	clusterResourcePathExists, _ := utils.IsDir(clusterResourcePath)
+	if clusterResourcePathExists {
+		err := utils.RemoveExtraFilesAndDirectories(clusterResourcePath, templatePath)
 		if err != nil {
-			return fmt.Errorf("failed to create directory %s; %w", clusterResourcePath, err)
+			return nil
 		}
 	}
 
-	sdh, err := os.Open(templatePath)
+	templatePathDir, err := os.Open(templatePath)
 	if err != nil {
 		return err
 	}
-	defer sdh.Close()
+	defer templatePathDir.Close()
 
-	entries, err := sdh.Readdirnames(-1)
+	entries, err := templatePathDir.Readdirnames(-1)
 	if err != nil {
 		return err
 	}
@@ -127,14 +122,18 @@ func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, 
 		if err != nil {
 			return err
 		}
+		targetEntryPath := filepath.Join(clusterResourcePath, entry)
 		if !dt {
-			destinationEntryPath := filepath.Join(clusterResourcePath, entry)
-			err := values.template(resourceEntryPath, destinationEntryPath, settings, secrets)
+			err := values.template(resourceEntryPath, targetEntryPath, settings, secrets)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = r.process(settings, values, secrets, clusterPath, resourceEntryPath)
+			err := os.MkdirAll(targetEntryPath, 0755)
+			if err != nil && !os.IsExist(err) {
+				return err
+			}
+			err = r.process(settings, values, secrets, clusterPath, entry)
 			if err != nil {
 				return err
 			}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -17,27 +16,42 @@ func RelWD(path string) string {
 	return relPath
 }
 
-func MkCleanDir(path string, protected []string, dryRun bool) error {
-	log.Debug("MkCleanDir (dry run: ", dryRun, "): ", RelWD(path))
-
-	exists, err := IsDir(path)
-	if dryRun {
-		if !exists {
-			return fmt.Errorf("%s does not exist or is not a directory", path)
-		} else {
-			return nil
-		}
-	}
-	if os.IsNotExist(err) {
-		err = os.MkdirAll(path, 0777)
+func RemoveExtraFilesAndDirectories(sourceDir, targetDir string) error {
+	sourceItems, err := os.ReadDir(sourceDir)
+	if err != nil {
 		return err
 	}
-	if !exists {
-		return fmt.Errorf("%s exists and is not a directory", path)
+
+	targetItems := make(map[string]struct{})
+
+	targetFiles, err := os.ReadDir(targetDir)
+	if err != nil {
+		return err
 	}
 
-	log.Debug("Cleaning ", RelWD(path))
-	return RmDir(path, protected, dryRun)
+	for _, item := range targetFiles {
+		targetItems[item.Name()] = struct{}{}
+	}
+
+	for _, item := range sourceItems {
+		if _, exists := targetItems[item.Name()]; !exists {
+			itemPath := filepath.Join(sourceDir, item.Name())
+
+			if item.IsDir() {
+				if err := os.RemoveAll(itemPath); err != nil {
+					return err
+				}
+				log.Debug("Removed target directory: ", itemPath)
+			} else {
+				if err := os.Remove(itemPath); err != nil {
+					return err
+				}
+				log.Debug("Removed target file: ", itemPath)
+			}
+		}
+	}
+
+	return nil
 }
 
 func MkDir(path string, dryRun bool) error {
@@ -80,35 +94,6 @@ func IsFile(path string) (bool, error) {
 func IsExist(path string) bool {
 	_, err := os.Stat(path)
 	return !errors.Is(err, os.ErrNotExist)
-}
-
-func RmDir(path string, protected []string, dryRun bool) error {
-	log.Debug("RmDir (dry run: ", dryRun, "): ", RelWD(path))
-
-	dir, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	subDirs, err := dir.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, subDir := range subDirs {
-		_, found := slices.BinarySearch(protected, subDir)
-		if found {
-			log.Info("Refusing to remove protected path: ", RelWD(subDir))
-			continue
-		}
-		log.Trace("Removing path: ", subDir)
-		err = os.RemoveAll(filepath.Join(path, subDir))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func WriteFile(path string, b []byte, mode uint32, dryRun bool) error {
