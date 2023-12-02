@@ -27,7 +27,7 @@ type Settings struct {
 	} `yaml:"delimiters"`
 	Directories struct {
 		Templates     string `yaml:"templates"`
-		Clusters      string `yaml:"clusters"`
+		Target        string `yaml:"target"`
 		baseDirectory string
 	} `yaml:"directories"`
 	configFileModifiedTime time.Time
@@ -49,11 +49,11 @@ func (settings *Settings) Defaults(
 	log.Info("Settings")
 	log.Info("Dry run: ", settings.DryRun)
 
-	if settings.Directories.Clusters == "" {
-		log.Trace("Settings default clusters directory: ", settingsDefaults["directory_clusters"])
-		settings.Directories.Clusters = settingsDefaults["directory_cluster"]
+	if settings.Directories.Target == "" {
+		log.Trace("Settings default target directory: ", settingsDefaults["directory_target"])
+		settings.Directories.Target = settingsDefaults["directory_target"]
 	}
-	log.Info("Clusters Directory: ", settings.Directories.Clusters)
+	log.Info("Clusters Directory: ", settings.Directories.Target)
 
 	if settings.Directories.Templates == "" {
 		log.Trace("Settings default templates directory: ", settingsDefaults["directory_templates"])
@@ -103,15 +103,15 @@ func (settings *Settings) Validate() error {
 		}
 	}
 
-	if settings.Directories.Clusters == "" {
-		return fmt.Errorf("clusters directory unset")
+	if settings.Directories.Target == "" {
+		return fmt.Errorf("target directory unset")
 	} else {
-		exist, err := utils.IsDir(settings.pathClusters())
+		exist, err := utils.IsDir(settings.pathTargets())
 		if !exist || err != nil {
-			log.Error("Clusters directory does not exist at ", utils.RelWD(settings.pathClusters()))
-			err = os.MkdirAll(settings.pathClusters(), 0777)
+			log.Error("Target directory does not exist at ", utils.RelWD(settings.pathTargets()))
+			err = os.MkdirAll(settings.pathTargets(), 0777)
 			if err != nil {
-				return fmt.Errorf("clusters directory cannot be created: %w", err)
+				return fmt.Errorf("target directory cannot be created: %w", err)
 			}
 		}
 	}
@@ -128,8 +128,8 @@ func (settings *Settings) Validate() error {
 	return nil
 }
 
-func (settings *Settings) pathClusters() string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Clusters)
+func (settings *Settings) pathTargets() string {
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Target)
 }
 
 func (settings *Settings) pathTemplates() string {
