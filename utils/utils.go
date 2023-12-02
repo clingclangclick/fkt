@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -16,7 +17,7 @@ func RelWD(path string) string {
 	return relPath
 }
 
-func RemoveExtraFilesAndDirectories(sourceDir, targetDir string) error {
+func RemoveExtraFilesAndDirectories(sourceDir, targetDir string, dryRun bool) error {
 	sourceItems, err := os.ReadDir(sourceDir)
 	if err != nil {
 		return err
@@ -36,6 +37,10 @@ func RemoveExtraFilesAndDirectories(sourceDir, targetDir string) error {
 	for _, item := range sourceItems {
 		if _, exists := targetItems[item.Name()]; !exists {
 			itemPath := filepath.Join(sourceDir, item.Name())
+
+			if dryRun && IsExist(itemPath) {
+				return fmt.Errorf("dry-run, entry to be removed: %s", itemPath)
+			}
 
 			if item.IsDir() {
 				if err := os.RemoveAll(itemPath); err != nil {
@@ -58,7 +63,7 @@ func MkDir(path string, dryRun bool) error {
 	exists, err := IsDir(path)
 	if dryRun {
 		if !exists {
-			return fmt.Errorf("%s does not exist or is not a directory", path)
+			return fmt.Errorf("dry-run, %s does not exist or is not a directory", path)
 		} else {
 			return nil
 		}
@@ -72,8 +77,6 @@ func MkDir(path string, dryRun bool) error {
 }
 
 func IsDir(path string) (bool, error) {
-	log.Trace("IsDir: ", path)
-
 	s, err := os.Stat(path)
 	if err != nil {
 		return false, err
@@ -83,7 +86,6 @@ func IsDir(path string) (bool, error) {
 }
 
 func IsFile(path string) (bool, error) {
-	log.Trace("IsRegular: ", path)
 	s, err := os.Stat(path)
 	if err != nil {
 		return false, err
@@ -97,19 +99,17 @@ func IsExist(path string) bool {
 }
 
 func WriteFile(path string, b []byte, mode uint32, dryRun bool) error {
-	log.Debug("WriteFile (dry run: ", dryRun, "): ", RelWD(path))
-
 	if dryRun {
 		existingData, err := os.ReadFile(path)
 		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("error reading existing file: %w", err)
+			return fmt.Errorf("dry-run, error reading existing file: %w", err)
 		}
 
-		if string(existingData) == string(b) {
+		if bytes.Equal(existingData, b) {
 			return nil
 		}
 
-		return errors.New("dry run: file contents would be changed")
+		return errors.New("dry-run, file contents would be changed")
 	}
 
 	err := os.WriteFile(path, b, os.FileMode(mode))

@@ -25,7 +25,7 @@ func (c *Cluster) config() Values {
 
 	config["path"] = *c.path
 	config["annotations"] = c.Annotations
-	config["managed"] = c.Managed
+	config["managed"] = *c.Managed
 
 	return config
 }
@@ -83,7 +83,7 @@ func (c *Cluster) process(config *Config) error {
 		return err
 	}
 
-	processedResources := []string{}
+	var processedResources []string
 
 	log.Info("Processing resources")
 	for resourceName, resource := range c.Resources {
@@ -108,43 +108,54 @@ func (c *Cluster) process(config *Config) error {
 		values["Values"] = ProcessValues(&config.Values, c.Values, &resource.Values)
 		log.Trace("Values: ", values)
 
+		log.Info("Processing ", resource.Name)
 		err := resource.process(config.Settings, values, &secrets, *c.path)
 		if err != nil {
 			return fmt.Errorf("cannot process resource: %s; %w", resource.Name, err)
 		}
 	}
 
-	resourceEntries, err := os.ReadDir(c.pathClusters(config.Settings))
-	if err != nil {
-		return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(config.Settings), err)
-	}
-
-	removableResourcePaths := []string{}
-
-	for _, resourceEntry := range resourceEntries {
-		resourceEntryName := resourceEntry.Name()
-		resourcePath := filepath.Join(c.pathClusters(config.Settings), resourceEntryName)
-
-		log.Debug("Checking resource ", resourceEntryName, ", path ", resourcePath)
-
-		exists, err := utils.IsDir(resourcePath)
-		if config.Settings.DryRun {
-			if exists {
-				return fmt.Errorf("%s exists when it should not", resourcePath)
-			} else {
-				return nil
-			}
-		}
-		if !os.IsExist(err) {
-			if !slices.Contains(processedResources, resourceEntryName) {
-				removableResourcePaths = append(removableResourcePaths, resourcePath)
-			}
-		}
-	}
-
 	if *c.Managed {
-		log.Debug("Removing unnecessary resource target paths: ", removableResourcePaths)
+		var removableResourcePaths []string
+
+		resourceEntries, err := os.ReadDir(c.pathClusters(config.Settings))
+		if err != nil {
+			return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(config.Settings), err)
+		}
+
+		for _, resourceEntry := range resourceEntries {
+			if !resourceEntry.IsDir() {
+				continue
+			}
+			resourceEntryName := resourceEntry.Name()
+			resourcePath := filepath.Join(c.pathClusters(config.Settings), resourceEntryName)
+
+			log.Debug("Checking resource ", resourceEntryName, ", path ", utils.RelWD(resourcePath))
+
+			exists, err := utils.IsDir(resourcePath)
+			if config.Settings.DryRun {
+				if exists {
+					return fmt.Errorf("%s exists when it should not", resourcePath)
+				} else {
+					return nil
+				}
+			}
+			if !os.IsExist(err) {
+				if !slices.Contains(processedResources, resourceEntryName) {
+					log.Info("Adding ", resourcePath)
+					removableResourcePaths = append(removableResourcePaths, resourcePath)
+				}
+			}
+		}
+
+		log.Debug("Removing unnecessary resource target paths, ", removableResourcePaths)
 		for _, removableResourcePath := range removableResourcePaths {
+			log.Trace("Removing path: ", utils.RelWD(removableResourcePath))
+			if config.Settings.DryRun {
+				if utils.IsExist(removableResourcePath) {
+					return fmt.Errorf("dry-run, %s should not exist", removableResourcePath)
+				}
+			}
 			err := os.RemoveAll(removableResourcePath)
 			if err != nil {
 				return fmt.Errorf("could not remove unnecessary resource target path: %s; %w", removableResourcePath, err)
@@ -156,7 +167,7 @@ func (c *Cluster) process(config *Config) error {
 			Cluster: c,
 		}
 
-		err := kustomization.generate(config.Settings, c.Annotations, config.Settings.DryRun)
+		err = kustomization.generate(config.Settings, c.Annotations, config.Settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}

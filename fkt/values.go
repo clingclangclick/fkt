@@ -142,16 +142,20 @@ func (v *Values) template(templatePath, targetPath string, settings *Settings, s
 		}
 	}
 
-	of, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		return fmt.Errorf("cannot write template to: %s; %w", targetPath, err)
-	}
-	defer of.Close()
-
-	_, err = of.WriteString(fileString.String())
+	err = utils.WriteFile(targetPath, []byte(fileString.String()), 0666, false)
 	if err != nil {
 		return err
 	}
+	// of, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0666)
+	// if err != nil {
+	// 	return fmt.Errorf("cannot write template to: %s; %w", targetPath, err)
+	// }
+	// defer of.Close()
+
+	// _, err = of.WriteString(fileString.String())
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

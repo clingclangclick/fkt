@@ -30,31 +30,27 @@ func (r *Resource) config() Values {
 
 func (r *Resource) load(name string) {
 	r.Name = name
-	log.Debug("Resource name: ", r.Name)
 
 	if r.Managed == nil {
 		log.Debug("Resource managed unset, setting to `true`")
 		r.Managed = new(bool)
 		*r.Managed = true
 	}
-	log.Debug("Resource managed: ", *r.Managed)
+	log.Debug("Resource ", r.Name, " managed: ", *r.Managed)
 
 	if r.Namespace == nil {
 		log.Debug("Resource namespace unset, setting to ", name)
 		r.Namespace = &name
 	}
-	log.Debug("Resource namespace: ", *r.Namespace)
 
 	if r.Template == nil {
 		log.Debug("Resource template path unset, setting to resource name")
 		r.Template = &name
 	}
-	log.Debug("Resource template: ", *r.Template)
 
 	if r.Values == nil {
 		r.Values = make(Values)
 	}
-	log.Trace("Resource values: ", r.Values)
 }
 
 func (r *Resource) pathCluster(settings *Settings, clusterPath string) string {
@@ -66,20 +62,20 @@ func (r *Resource) pathTemplates(settings *Settings) string {
 }
 
 func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, clusterPath string, subPaths ...string) error {
-	subPath := ""
+	if !*r.Managed {
+		log.Info("Unmanaged, skipping templates for resource: ", r.Name)
+		return nil
+	}
+
+	var subPath string
 	if len(subPaths) > 0 {
-		subPathSlice := []string{}
+		var subPathSlice []string
 		subPathSlice = append(subPathSlice, subPaths...)
 		subPath = filepath.Join(subPathSlice...)
 	}
 
 	templatePath := filepath.Join(r.pathTemplates(settings), subPath)
 	log.Debug("Template path: ", utils.RelWD(templatePath))
-
-	if !*r.Managed {
-		log.Info("Unmanaged, skipping templating")
-		return nil
-	}
 
 	templatePathExists, err := utils.IsDir(templatePath)
 	if err != nil {
@@ -99,7 +95,7 @@ func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, 
 
 	clusterResourcePathExists, _ := utils.IsDir(clusterResourcePath)
 	if clusterResourcePathExists {
-		err := utils.RemoveExtraFilesAndDirectories(clusterResourcePath, templatePath)
+		err := utils.RemoveExtraFilesAndDirectories(clusterResourcePath, templatePath, settings.DryRun)
 		if err != nil {
 			return nil
 		}
@@ -123,16 +119,16 @@ func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, 
 			return err
 		}
 		targetEntryPath := filepath.Join(clusterResourcePath, entry)
+		err = utils.MkDir(filepath.Dir(targetEntryPath), settings.DryRun)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
 		if !dt {
 			err := values.template(resourceEntryPath, targetEntryPath, settings, secrets)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := os.MkdirAll(targetEntryPath, 0755)
-			if err != nil && !os.IsExist(err) {
-				return err
-			}
 			err = r.process(settings, values, secrets, clusterPath, entry)
 			if err != nil {
 				return err
@@ -161,7 +157,7 @@ func (r *Resource) validate(settings *Settings, name string) error {
 
 func (r *Resource) containsKustomization(settings *Settings) bool {
 	path := r.pathTemplates(settings)
-	log.Debug("Checking for kustomization.yaml at: ", path)
+	log.Debug("Checking for kustomization.yaml at: ", utils.RelWD(path))
 	kustomizations := []string{
 		"Kustomization",
 		"kustomization.yaml",
@@ -172,11 +168,10 @@ func (r *Resource) containsKustomization(settings *Settings) bool {
 		kustomizationFile := filepath.Join(path, kustomization)
 		ft, err := utils.IsFile(kustomizationFile)
 		if ft && err == nil {
-			log.Debug("Found ", utils.RelWD(kustomizationFile))
 			return true
 		}
 	}
 
-	log.Trace("No kustomizations in ", path)
+	log.Warn("No kustomizations in ", path)
 	return false
 }

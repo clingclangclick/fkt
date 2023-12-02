@@ -80,7 +80,7 @@ func main() {
 		os.Setenv("SOPS_AGE_KEY", CLI.SopsAgeKey)
 	}
 
-	log.Debug("Loaded configuration file: ", CLI.ConfigFile)
+	log.Debug("Loaded configuration file")
 
 	settings := config.Settings
 

@@ -1,6 +1,5 @@
 .bin
-example/**
-!example/**/.gitignore
-!example/templates
-!example/config.yaml
-!example/secrets.yaml
+example/clusters/*
+!example/clusters/.gitignore
+example/.sops.agekey
+example/secrets.yaml
