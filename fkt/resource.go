@@ -54,7 +54,7 @@ func (r *Resource) load(name string) {
 }
 
 func (r *Resource) pathCluster(settings *Settings, clusterPath string) string {
-	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Clusters, clusterPath, r.Name)
+	return filepath.Join(settings.Directories.baseDirectory, settings.Directories.Target, clusterPath, r.Name)
 }
 
 func (r *Resource) pathTemplates(settings *Settings) string {

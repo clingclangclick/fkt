@@ -14,30 +14,22 @@ import (
 )
 
 type Kustomization struct {
-	Cluster *Cluster
-}
-
-type kustomization struct {
-	CommonAnnotations map[string]string `yaml:"commonAnnotations"`
 	APIVersion        string            `yaml:"apiVersion"`
 	Kind              string            `yaml:"kind"`
 	Resources         []string          `yaml:"resources"`
+	CommonAnnotations map[string]string `yaml:"commonAnnotations"`
+	Patches           []interface{}     `yaml:"patches"`
 }
 
-func (k *Kustomization) generate(settings *Settings, commonAnnotations map[string]string, dryRun bool) error {
-	resources, err := k.resources(settings)
+func (k *Kustomization) generate(settings *Settings, cluster *Cluster, dryRun bool) error {
+	err := k.resources(settings, cluster)
 	if err != nil {
 		return fmt.Errorf("cannot generate kustomization resources: %w", err)
 	}
 
-	if len(resources) == 0 {
-		log.Warn("No kustomization resources in: ", k.Cluster.path)
-		return nil
-	}
+	targetPath := cluster.pathTargets(settings)
 
-	targetPath := k.Cluster.pathClusters(settings)
-
-	log.Info("Generating kustomization for: ", resources)
+	log.Info("Generating kustomization")
 	isDir, err := utils.IsDir(targetPath)
 	if err != nil {
 		return fmt.Errorf("error determinig directory: %w", err)
@@ -46,12 +38,7 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 		return fmt.Errorf("path is not directory: %s", targetPath)
 	}
 
-	kustomizationYAML, err := yaml.Marshal(&kustomization{
-		Kind:              "Kustomization",
-		APIVersion:        "kustomize.config.k8s.io/v1beta1",
-		CommonAnnotations: commonAnnotations,
-		Resources:         resources,
-	})
+	kustomizationYAML, err := yaml.Marshal(k)
 	if err != nil {
 		return fmt.Errorf("cannot marshal kustomization: %w", err)
 	}
@@ -64,10 +51,8 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 	return nil
 }
 
-func (k *Kustomization) resources(settings *Settings) ([]string, error) {
+func (k *Kustomization) resources(settings *Settings, cluster *Cluster) error {
 	var resources []string
-
-	cluster := k.Cluster
 
 	for resourceName, resource := range cluster.Resources {
 		if resource == nil {
@@ -78,21 +63,20 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if !*resource.Managed {
 			continue
 		}
-
 		resources = append(resources, resourceName)
 	}
 
-	clusterPath := cluster.pathClusters(settings)
+	clusterPath := cluster.pathTargets(settings)
 
 	d, err := os.Open(clusterPath)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 	defer d.Close()
 
 	entries, err := d.Readdirnames(-1)
 	if err != nil {
-		return []string{}, err
+		return err
 	}
 	for _, entry := range entries {
 		found := slices.Contains(resources, entry)
@@ -101,12 +85,18 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		}
 		de, err := utils.IsDir(filepath.Join(clusterPath, entry))
 		if err != nil {
-			return []string{}, err
+			return err
 		}
 		if de {
 			resources = append(resources, entry)
 		}
 	}
 
-	return resources, nil
+	if len(resources) == 0 {
+		log.Warn("No kustomization resources in: ", cluster.path)
+	}
+
+	k.Resources = resources
+
+	return nil
 }

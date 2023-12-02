@@ -12,19 +12,19 @@ import (
 )
 
 type Cluster struct {
-	Annotations  map[string]string    `yaml:"annotations"`
-	Managed      *bool                `yaml:"managed"`
-	Values       *Values              `yaml:"values,flow"`
-	Resources    map[string]*Resource `yaml:"resources,flow"`
-	AgePublicKey string               `yaml:"age_public_key"`
-	path         *string
+	Kustomization *Kustomization       `yaml:"kustomization,flow"`
+	Managed       *bool                `yaml:"managed"`
+	Values        *Values              `yaml:"values,flow"`
+	Resources     map[string]*Resource `yaml:"resources,flow"`
+	AgePublicKey  string               `yaml:"age_public_key"`
+	path          *string
 }
 
 func (c *Cluster) config() Values {
 	config := make(Values)
 
 	config["path"] = *c.path
-	config["annotations"] = c.Annotations
+	config["commonAnnotations"] = c.Kustomization.CommonAnnotations
 	config["managed"] = *c.Managed
 
 	return config
@@ -33,18 +33,20 @@ func (c *Cluster) config() Values {
 func (c *Cluster) load(path string) {
 	c.path = &path
 
-	if c.Annotations == nil {
-		log.Trace("Cluster ", *c.path, " has no annotations")
-		c.Annotations = make(map[string]string)
+	if c.Kustomization == nil {
+		log.Trace("Cluster ", *c.path, " has no kustomization settings")
+		c.Kustomization = &Kustomization{}
 	}
 
-	if _, ok := c.Annotations["name"]; !ok {
+	if c.Kustomization.CommonAnnotations == nil {
 		_, name := filepath.Split(path)
-		c.Annotations["name"] = name
+		c.Kustomization.CommonAnnotations = map[string]string{
+			"name": name,
+		}
 	}
 
 	if c.Managed == nil {
-		log.Debug("Cluster managed unset, setting to `true`")
+		log.Trace("Cluster managed unset, setting to `true`")
 		c.Managed = new(bool)
 		*c.Managed = true
 	}
@@ -53,11 +55,10 @@ func (c *Cluster) load(path string) {
 	if c.Values == nil {
 		c.Values = new(Values)
 	}
-	log.Debug("Cluster Values: ", *c.Values)
 }
 
-func (c *Cluster) pathClusters(settings *Settings) string {
-	return filepath.Join(settings.pathClusters(), *c.path)
+func (c *Cluster) pathTargets(settings *Settings) string {
+	return filepath.Join(settings.pathTargets(), *c.path)
 }
 
 func (c *Cluster) process(config *Config) error {
@@ -78,7 +79,7 @@ func (c *Cluster) process(config *Config) error {
 		}
 	}
 
-	err := utils.MkDir(c.pathClusters(config.Settings), config.Settings.DryRun)
+	err := utils.MkDir(c.pathTargets(config.Settings), config.Settings.DryRun)
 	if err != nil {
 		return err
 	}
@@ -118,9 +119,9 @@ func (c *Cluster) process(config *Config) error {
 	if *c.Managed {
 		var removableResourcePaths []string
 
-		resourceEntries, err := os.ReadDir(c.pathClusters(config.Settings))
+		resourceEntries, err := os.ReadDir(c.pathTargets(config.Settings))
 		if err != nil {
-			return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathClusters(config.Settings), err)
+			return fmt.Errorf("cannot get listing of resources in cluster path: %s; %w", c.pathTargets(config.Settings), err)
 		}
 
 		for _, resourceEntry := range resourceEntries {
@@ -128,7 +129,7 @@ func (c *Cluster) process(config *Config) error {
 				continue
 			}
 			resourceEntryName := resourceEntry.Name()
-			resourcePath := filepath.Join(c.pathClusters(config.Settings), resourceEntryName)
+			resourcePath := filepath.Join(c.pathTargets(config.Settings), resourceEntryName)
 
 			log.Debug("Checking resource ", resourceEntryName, ", path ", utils.RelWD(resourcePath))
 
@@ -164,10 +165,13 @@ func (c *Cluster) process(config *Config) error {
 
 		log.Debug("Generating kustomization for cluster: ", *c.path)
 		kustomization := &Kustomization{
-			Cluster: c,
+			Kind:              "Kustomization",
+			APIVersion:        "kustomize.config.k8s.io/v1beta1",
+			CommonAnnotations: c.Kustomization.CommonAnnotations,
+			Patches:           c.Kustomization.Patches,
 		}
 
-		err = kustomization.generate(config.Settings, c.Annotations, config.Settings.DryRun)
+		err = kustomization.generate(config.Settings, c, config.Settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
