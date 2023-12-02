@@ -42,7 +42,7 @@ anchors:                       # re-usable anchors
     flux-system:
       managed: false             # FluxCD system resources are managed by flux
   flux-sops-key: &flux-sops-key  # Kustomization patch for flux secrets
-    patch: >
+    patch: |
         apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
         kind: Kustomization
         metadata:
