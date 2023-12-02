@@ -224,8 +224,6 @@ data:
 Kustomization files are generated for each target path, which can be
 set in the cluster configuration.
 
-
-
 ## Bootstrapping FluxCD
 
 Include a `flux-system` anchor in the YAML configuration
