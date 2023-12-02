@@ -35,15 +35,15 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 		return nil
 	}
 
-	destinationPath := k.Cluster.pathClusters(settings)
+	targetPath := k.Cluster.pathClusters(settings)
 
 	log.Info("Generating kustomization for: ", resources)
-	isDir, err := utils.IsDir(destinationPath)
+	isDir, err := utils.IsDir(targetPath)
 	if err != nil {
 		return fmt.Errorf("error determinig directory: %w", err)
 	}
 	if !isDir {
-		return fmt.Errorf("path is not directory: %s", destinationPath)
+		return fmt.Errorf("path is not directory: %s", targetPath)
 	}
 
 	kustomizationYAML, err := yaml.Marshal(&kustomization{
@@ -55,23 +55,21 @@ func (k *Kustomization) generate(settings *Settings, commonAnnotations map[strin
 	if err != nil {
 		return fmt.Errorf("cannot marshal kustomization: %w", err)
 	}
-	kustomizationYAML = []byte(fmt.Sprintf("---\n%s", kustomizationYAML))
-
-	kustomizationFile := filepath.Join(destinationPath, "kustomization.yaml")
-	if !dryRun {
-		err = utils.WriteFile(kustomizationFile, kustomizationYAML, uint32(0666), dryRun)
-		if err != nil {
-			return fmt.Errorf("cannot write kustomization: %w", err)
-		}
+	kustomizationFile := filepath.Join(targetPath, "kustomization.yaml")
+	err = utils.WriteFile(kustomizationFile, kustomizationYAML, uint32(0666), dryRun)
+	if err != nil {
+		return fmt.Errorf("cannot write kustomization: %w", err)
 	}
 
 	return nil
 }
 
 func (k *Kustomization) resources(settings *Settings) ([]string, error) {
-	resources := []string{}
+	var resources []string
 
-	for resourceName, resource := range k.Cluster.Resources {
+	cluster := k.Cluster
+
+	for resourceName, resource := range cluster.Resources {
 		if resource == nil {
 			resource = &Resource{}
 		}
@@ -84,7 +82,7 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		resources = append(resources, resourceName)
 	}
 
-	clusterPath := k.Cluster.pathClusters(settings)
+	clusterPath := cluster.pathClusters(settings)
 
 	d, err := os.Open(clusterPath)
 	if err != nil {
@@ -101,17 +99,14 @@ func (k *Kustomization) resources(settings *Settings) ([]string, error) {
 		if found {
 			continue
 		}
-		resources = append(resources, entry)
-		// de, err := utils.IsDir(filepath.Join(clusterPath, entry))
-		// if err != nil {
-		// 	return []string{}, err
-		// }
-		// if de {
-		// 	if utils.ContainsKustomization(filepath.Join(clusterPath, entry)) {
-		// 		resources = append(resources, entry)
-		// 	}
-		// }
+		de, err := utils.IsDir(filepath.Join(clusterPath, entry))
+		if err != nil {
+			return []string{}, err
+		}
+		if de {
+			resources = append(resources, entry)
+		}
 	}
 
-	return entries, nil
+	return resources, nil
 }

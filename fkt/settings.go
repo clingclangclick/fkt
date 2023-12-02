@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -29,6 +30,7 @@ type Settings struct {
 		Clusters      string `yaml:"clusters"`
 		baseDirectory string
 	} `yaml:"directories"`
+	configFileModifiedTime time.Time
 }
 
 func (settings *Settings) Defaults(

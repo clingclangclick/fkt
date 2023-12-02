@@ -73,12 +73,14 @@ func main() {
 		ctx.Exit(1)
 	}
 
+	log.Info("Loaded configuration: ", utils.RelWD(CLI.ConfigFile))
+
 	if CLI.SopsAgeKey != "" {
 		log.Info("Setting SOPS_AGE_KEY")
 		os.Setenv("SOPS_AGE_KEY", CLI.SopsAgeKey)
 	}
 
-	log.Debug("Loaded configuration file: ", CLI.ConfigFile)
+	log.Debug("Loaded configuration file")
 
 	settings := config.Settings
 
