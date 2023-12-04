@@ -85,7 +85,7 @@ func (r *Resource) process(settings *Settings, values Values, secrets *Secrets, 
 		return fmt.Errorf("template(%s) not a directory", templatePath)
 	}
 
-	if !r.containsKustomization(settings) {
+	if !utils.ContainsKustomization(r.pathTemplates(settings)) {
 		log.Warn("kustomization file does not exist in: ", templatePath)
 		return nil
 	}
@@ -147,31 +147,10 @@ func (r *Resource) validate(settings *Settings, name string) error {
 			return fmt.Errorf("resource template path validation failed for: %s; %w", name, err)
 		}
 
-		if !r.containsKustomization(settings) {
+		if !utils.ContainsKustomization(r.pathTemplates(settings)) {
 			return fmt.Errorf("kustomization file does not exist in: %s; %w", utils.RelWD(path), err)
 		}
 	}
 
 	return nil
-}
-
-func (r *Resource) containsKustomization(settings *Settings) bool {
-	path := r.pathTemplates(settings)
-	log.Debug("Checking for kustomization.yaml at: ", utils.RelWD(path))
-	kustomizations := []string{
-		"Kustomization",
-		"kustomization.yaml",
-		"kustomization.yml",
-	}
-
-	for _, kustomization := range kustomizations {
-		kustomizationFile := filepath.Join(path, kustomization)
-		ft, err := utils.IsFile(kustomizationFile)
-		if ft && err == nil {
-			return true
-		}
-	}
-
-	log.Warn("No kustomizations in ", path)
-	return false
 }

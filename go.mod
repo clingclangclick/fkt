@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/getsops/sops/v3 v3.8.1
 	github.com/sirupsen/logrus v1.9.3
+	golang.org/x/exp v0.0.0-20231127185646-65229373498e
 	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.28.4

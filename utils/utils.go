@@ -119,3 +119,23 @@ func WriteFile(path string, b []byte, mode uint32, dryRun bool) error {
 
 	return nil
 }
+
+func ContainsKustomization(path string) bool {
+	log.Debug("Checking for kustomization.yaml at: ", RelWD(path))
+	kustomizations := []string{
+		"Kustomization",
+		"kustomization.yaml",
+		"kustomization.yml",
+	}
+
+	for _, kustomization := range kustomizations {
+		kustomizationFile := filepath.Join(path, kustomization)
+		ft, err := IsFile(kustomizationFile)
+		if ft && err == nil {
+			return true
+		}
+	}
+
+	log.Trace("No kustomizations in ", path)
+	return false
+}
