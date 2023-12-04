@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 
+	"golang.org/x/exp/maps"
+
 	log "github.com/sirupsen/logrus"
 
 	utils "github.com/clingclangclick/fkt/utils"
@@ -171,7 +173,7 @@ func (c *Cluster) process(config *Config) error {
 			Patches:           c.Kustomization.Patches,
 		}
 
-		err = kustomization.generate(config.Settings, c, config.Settings.DryRun)
+		err = kustomization.generate(c.pathTargets(config.Settings), maps.Keys(c.Resources), config.Settings.DryRun)
 		if err != nil {
 			return fmt.Errorf("cannot generate kustomization: %w", err)
 		}
