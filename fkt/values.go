@@ -39,34 +39,6 @@ func ProcessValues(values ...*Values) Values {
 }
 
 func (v *Values) template(templatePath, targetPath string, settings *Settings, secrets *Secrets) error {
-	templatePathInfo, err := os.Stat(templatePath)
-	if err != nil {
-		return err
-	}
-
-	targetPathIsFile, err := utils.IsFile(targetPath)
-	if targetPathIsFile && err == nil {
-		targetPathInfo, err := os.Stat(targetPath)
-		if err != nil {
-			return err
-		}
-		targetPathModified := targetPathInfo.ModTime()
-		if targetPathModified.After(templatePathInfo.ModTime()) && targetPathModified.After(settings.configFileModifiedTime) {
-			if secrets.lastModified != nil {
-				if targetPathModified.After(*secrets.lastModified) {
-					return nil
-				}
-			} else {
-				return nil
-			}
-		}
-
-		err = os.Remove(targetPath)
-		if err != nil {
-			return err
-		}
-	}
-
 	tfd, err := os.ReadFile(templatePath)
 	if err != nil {
 		return fmt.Errorf("cannot read template file: %s; %w", templatePath, err)
@@ -79,83 +51,121 @@ func (v *Values) template(templatePath, targetPath string, settings *Settings, s
 		}
 	}
 
-	fileString := &strings.Builder{}
-	if readAsYaml {
-		reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader([]byte(tfd))))
-		multipleDocs := false
-		for {
-			buf, err := reader.Read()
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
-			}
-
-			k8sYaml := &K8S{}
-			err = yaml.Unmarshal(buf, &k8sYaml)
-			if err != nil {
-				return err
-			}
-			if k8sYaml.Kind == "Secret" && secrets.ageKey != "" {
-				log.Info("Adding secrets to values for Secret k8s Kind")
-				(*v)["Secrets"] = secrets.values
-			}
-
-			tpl, err := v.execute(templatePath, string(buf), settings.Delimiters.Left, settings.Delimiters.Right)
-			if err != nil {
-				return err
-			}
-
-			if multipleDocs {
-				_, err = fileString.WriteString("---\n")
-				if err != nil {
-					return err
-				}
-			}
-
-			var yamlFile string
-			if k8sYaml.Kind == "Secret" && secrets.ageKey != "" {
-				yamlFileString, err := encrypt(tpl.String(), secrets.ageKey)
-				if err != nil {
-					return err
-				}
-				yamlFile = string(yamlFileString)
-			} else {
-				yamlFile = tpl.String()
-			}
-
-			_, err = fileString.WriteString(yamlFile)
-			if err != nil {
-				return err
-			}
-			multipleDocs = true
-		}
-	} else {
+	// Non-YAML files not read in as mulitdoc for k8s kind processing for secrets
+	if !readAsYaml {
 		tpl, err := v.execute(templatePath, string(tfd), settings.Delimiters.Left, settings.Delimiters.Right)
 		if err != nil {
 			return err
 		}
-		_, err = fileString.WriteString(tpl.String())
+
+		err = os.RemoveAll(targetPath)
 		if err != nil {
 			return err
 		}
+
+		err = utils.WriteFile(targetPath, []byte(tpl.String()), 0666, false)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Do not update secrets when:
+	// - targetPath file exists (already written)
+	// - targetPath last modified time after modified times of:
+	//   - template file
+	//   - configuration file
+	//   - secrets file, if file exists
+	targetPathIsFile, err := utils.IsFile(targetPath)
+	if targetPathIsFile && err == nil {
+		targetPathInfo, err := os.Stat(targetPath)
+		if err != nil {
+			return err
+		}
+		targetPathModified := targetPathInfo.ModTime().UTC()
+
+		templatePathInfo, err := os.Stat(templatePath)
+		if err != nil {
+			return err
+		}
+		templatePathModified := templatePathInfo.ModTime().UTC()
+		if err != nil {
+			return err
+		}
+		if targetPathModified.After(templatePathModified) &&
+			targetPathModified.After(settings.configFileModifiedTime) &&
+			secrets.lastModified != nil && targetPathModified.After(*secrets.lastModified) {
+			log.Trace(utils.RelWD(targetPath), " modified after template, config, and secrets file, not modifying")
+			return nil
+		} else {
+			log.Trace("Regenerating ", utils.RelWD(targetPath))
+		}
+	}
+
+	fileString := &strings.Builder{}
+	reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader([]byte(tfd))))
+	multipleDocs := false
+	for {
+		buf, err := reader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if multipleDocs {
+			_, err = fileString.WriteString("---\n")
+			if err != nil {
+				return err
+			}
+		}
+
+		k8sYaml := &K8S{}
+		err = yaml.Unmarshal(buf, &k8sYaml)
+		if err != nil {
+			return err
+		}
+		if k8sYaml.Kind == "Secret" && secrets.ageKey != "" {
+			log.Info("Adding secrets to values for Secret k8s Kind")
+			(*v)["Secrets"] = secrets.values
+		}
+
+		tpl, err := v.execute(templatePath, string(buf), settings.Delimiters.Left, settings.Delimiters.Right)
+		if err != nil {
+			return err
+		}
+
+		var yamlFile string
+		if k8sYaml.Kind == "Secret" {
+			if secrets.ageKey == "" {
+				return fmt.Errorf("secret templated but no age public key exists for cluster")
+			}
+			yamlFileString, err := encrypt(tpl.String(), secrets.ageKey)
+			if err != nil {
+				return err
+			}
+			yamlFile = string(yamlFileString)
+		} else {
+			yamlFile = tpl.String()
+		}
+
+		_, err = fileString.WriteString(yamlFile)
+		if err != nil {
+			return err
+		}
+		multipleDocs = true
+	}
+
+	err = os.RemoveAll(targetPath)
+	if err != nil {
+		return err
 	}
 
 	err = utils.WriteFile(targetPath, []byte(fileString.String()), 0666, false)
 	if err != nil {
 		return err
 	}
-	// of, err := os.OpenFile(targetPath, os.O_CREATE|os.O_RDWR, 0666)
-	// if err != nil {
-	// 	return fmt.Errorf("cannot write template to: %s; %w", targetPath, err)
-	// }
-	// defer of.Close()
-
-	// _, err = of.WriteString(fileString.String())
-	// if err != nil {
-	// 	return err
-	// }
 
 	return nil
 }

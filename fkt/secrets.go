@@ -25,12 +25,14 @@ func (s *Secrets) read(path string) error {
 
 	secretsFileExists, err := utils.IsFile(path)
 	if secretsFileExists && err == nil {
-		fileInfo, err := os.Stat(path)
+		sopsBytes, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}
-
-		lastModified := fileInfo.ModTime()
+		lastModified, err := utils.SOPSLastModified(sopsBytes)
+		if err != nil {
+			return err
+		}
 		s.lastModified = &lastModified
 
 		contents, err := decrypt.File(path, "yaml")
