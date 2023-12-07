@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 func RelWD(path string) string {
@@ -138,4 +140,30 @@ func ContainsKustomization(path string) bool {
 
 	log.Trace("No kustomizations in ", path)
 	return false
+}
+
+func SOPSLastModified(fileBytes []byte) (time.Time, error) {
+	sopsStruct := struct {
+		Sops struct {
+			LastModified string `yaml:"lastmodified"`
+		} `yaml:"sops"`
+	}{}
+
+	err := yaml.Unmarshal(fileBytes, &sopsStruct)
+	if err != nil {
+		return time.Time{}, err
+	}
+	iso8601Format := "2006-01-02T15:04:05Z"
+
+	log.Trace("Found lastmodified for sops k8s yaml: ", sopsStruct.Sops.LastModified)
+
+	t, err := time.Parse(iso8601Format, sopsStruct.Sops.LastModified)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	tUTC := t.UTC()
+
+	log.Debug("Parsed lastmdified time as ", tUTC)
+	return t, err
 }

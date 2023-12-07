@@ -39,7 +39,7 @@ func LoadConfig(configurationFile string) (*Config, error) {
 	if config.Settings == nil {
 		config.Settings = &Settings{}
 	}
-	config.Settings.configFileModifiedTime = configurationFileInfo.ModTime()
+	config.Settings.configFileModifiedTime = configurationFileInfo.ModTime().UTC()
 
 	return &config, err
 }

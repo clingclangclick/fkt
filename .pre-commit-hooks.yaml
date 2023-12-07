@@ -1,6 +1,6 @@
 - id: fkt
   name: fkt
   language: docker_image
-  entry: --env SOPS_AGE_KEY ghcr.io/clingclangclick/fkt/fkt:0.27.0
+  entry: --env SOPS_AGE_KEY ghcr.io/clingclangclick/fkt/fkt:0.28.0
   pass_filenames: false
   verbose: true
