@@ -193,7 +193,7 @@ jobs:
       id: go-version
 
     - name: Install Go ${{ steps.go-version.outputs.minimal }}
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.go-version.outputs.minimal }}
         check-latest: true
